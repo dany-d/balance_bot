@@ -156,7 +156,7 @@ int main(){
     rc_filter_enable_saturation(&D1, -1.0, 1.0);
     rc_filter_enable_soft_start(&D1, 0.5);
 
-    if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 19*DT, DT)){
+    if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 4*DT, DT)){
             fprintf(stderr,"ERROR in rc_filter_pid.\n");
             return -1;
     }
@@ -252,9 +252,10 @@ void balancebot_controller(){
     //fprintf(stderr, "%f\n", wheel_angle);
     // implement outerloop here
     if(rc_get_state()!=EXITING){
-        double dist_ref = 1;//mb_setpoints.wheel_angle;
-        double theta_ref = rc_filter_march(&D2, (0.5-mb_state.dist_travelled));
-        double pwm_duty = rc_filter_march(&D1, (theta_ref+0.035-mb_state.theta));
+        //double phi_ref = mb_setpoints.wheel_angle;
+        //double theta_ref = rc_filter_march(&D2, (phi_ref-mb_state.phi));
+        double theta_ref = mb_setpoints.theta_ref;
+        double pwm_duty = rc_filter_march(&D1, (theta_ref+0.036-mb_state.theta));
         //double turning_pwm_duty = rc_filter_march(&D3, (mb_setpoints.heading_angle-mb_state.yaw));
         double turning_pwm_duty = mb_setpoints.heading_angle;
         //mb_motor_set_all(pwm_duty);
@@ -338,6 +339,7 @@ void* setpoint_control_loop(void* ptr){
             // set value to global data structure
             mb_setpoints.fwd_velocity = forward_speed;
             mb_setpoints.turn_velocity = turning_speed;
+            mb_setpoints.theta_ref = forward_speed;
             mb_setpoints.wheel_angle += fwd_speed2dist(forward_speed);
             mb_setpoints.heading_angle = trun_speed2angle(turning_speed)*5;
             if(manual_ctl > 0) {
@@ -370,7 +372,7 @@ void* setpoint_control_loop(void* ptr){
                 rc_filter_enable_saturation(&D1, -1.0, 1.0);
                 rc_filter_enable_soft_start(&D1, 0.5);
 
-                if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 19*DT, DT)){
+                if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 4*DT, DT)){
                         fprintf(stderr,"ERROR in rc_filter_pid.\n");
                         return NULL;
                 }
@@ -440,7 +442,7 @@ void* printf_loop(void* ptr){
 			//printf("%7.3f  |", mb_state.opti_yaw);
             //printf("%7.3f  |", mb_state.dist_travelled);
             printf("%7.3f  |", mb_setpoints.heading_angle);
-			printf("%7.3f  |", mb_state.dist_travelled);
+			printf("%7.3f  |", mb_setpoints.wheel_angle);
             printf("  %d  |", mb_setpoints.manual_ctl);
 			pthread_mutex_unlock(&state_mutex);
 			fflush(stdout);

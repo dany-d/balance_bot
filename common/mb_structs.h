@@ -34,6 +34,7 @@ struct mb_setpoints{
     float wheel_angle; // mapping to phi
     float heading_angle; // mapping to yaw
     int manual_ctl;
+    float theta_ref;
 };
 
 typedef struct mb_odometry mb_odometry_t;
