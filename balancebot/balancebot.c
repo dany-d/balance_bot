@@ -252,10 +252,10 @@ void balancebot_controller(){
     //fprintf(stderr, "%f\n", wheel_angle);
     // implement outerloop here
     if(rc_get_state()!=EXITING){
-        //double phi_ref = mb_setpoints.wheel_angle;
-        //double theta_ref = rc_filter_march(&D2, (phi_ref-mb_state.phi));
-        double theta_ref = mb_setpoints.theta_ref;
-        double pwm_duty = rc_filter_march(&D1, (theta_ref+0.036-mb_state.theta));
+        double phi_ref = mb_setpoints.wheel_angle;
+        double theta_ref = rc_filter_march(&D2, (phi_ref-mb_state.phi));
+        // double theta_ref = mb_setpoints.theta_ref;
+        double pwm_duty = rc_filter_march(&D1, (theta_ref+0.038-mb_state.theta));
         //double turning_pwm_duty = rc_filter_march(&D3, (mb_setpoints.heading_angle-mb_state.yaw));
         double turning_pwm_duty = mb_setpoints.heading_angle;
         //mb_motor_set_all(pwm_duty);

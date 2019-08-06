@@ -36,7 +36,7 @@
 #define FOWARD_CHANNEL              3 // dsm channel
 #define TURNING_CHANNEL             4 // dsm channel
 #define MANUAL_CHANNEL              5 // dsm channel
-#define MAX_FWD_SPEED               0.08 // m/s
+#define MAX_FWD_SPEED               1 // m/s
 #define MAX_TURN_SPEED              1 // rad/s
 
 #endif
