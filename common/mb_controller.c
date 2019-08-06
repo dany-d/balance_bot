@@ -28,7 +28,7 @@ static float saturate(float input) {
 * return 0 on success
 *
 *******************************************************************************/
-int mb_controller_init(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_filter_t *g_D3_filter) {
+int mb_controller_init(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_filter_t *g_D3_filter, double *sse) {
     char param_name[100] = {0};
     FILE *fp;
 
@@ -68,16 +68,19 @@ int mb_controller_init(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_fi
     fscanf(fp, "%s %lf\n", param_name, &D3_KD);
     fprintf(stdout, "%s %lf\n", param_name, D3_KD);
 
+    fscanf(fp, "%s %lf\n", param_name, sse);
+    fprintf(stdout, "%s %lf\n", param_name, *sse);
+
     fclose(fp);
 
-    if(rc_filter_pid(g_D1_filter, D1_KP, D1_KI, D1_KD, 4*DT, DT)){
+    if(rc_filter_pid(g_D1_filter, D1_KP, D1_KI, D1_KD, 2.7*DT, DT)){
             fprintf(stderr,"ERROR in rc_filter_pid.\n");
             return -1;
     }
     rc_filter_enable_saturation(g_D1_filter, -1.0, 1.0);
     rc_filter_enable_soft_start(g_D1_filter, 0.5);
 
-    if(rc_filter_pid(g_D2_filter, D2_KP, D2_KI, D2_KD, 4*DT, DT)){
+    if(rc_filter_pid(g_D2_filter, D2_KP, D2_KI, D2_KD, 19.4*DT, DT)){
             fprintf(stderr,"ERROR in rc_filter_pid.\n");
             return -1;
     }
@@ -105,16 +108,20 @@ int mb_controller_init(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_fi
 *
 *******************************************************************************/
 int mb_controller_update(mb_state_t *mb_state, mb_setpoints_t *mb_setpoints,
-        rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_filter_t *g_D3_filter) {
+        rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_filter_t *g_D3_filter, double sse) {
 
-    double theta_steady_state_error = 0.038;
     double theta_ref = 0;
     double pwm_duty = 0;
     double turning_pwm_duty = 0;
 
     theta_ref = rc_filter_march(g_D2_filter, (mb_setpoints->wheel_angle-mb_state->phi));
-    pwm_duty = rc_filter_march(g_D1_filter, (theta_ref+theta_steady_state_error-mb_state->theta));
-    turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw);
+    pwm_duty = rc_filter_march(g_D1_filter, (theta_ref+sse-mb_state->theta));
+    if (mb_setpoints->manual_ctl == 2){
+        turning_pwm_duty = mb_setpoints->heading_angle;
+    }
+    if (mb_setpoints->manual_ctl == 0){
+        turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw);
+    }
     mb_state->left_pwm = saturate(-turning_pwm_duty+pwm_duty);
     mb_state->right_pwm = saturate(turning_pwm_duty+pwm_duty);
 

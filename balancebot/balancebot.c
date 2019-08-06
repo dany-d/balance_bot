@@ -30,7 +30,10 @@
 rc_filter_t g_D1_filter = RC_FILTER_INITIALIZER;
 rc_filter_t g_D2_filter = RC_FILTER_INITIALIZER;
 rc_filter_t g_D3_filter = RC_FILTER_INITIALIZER;
-
+double sse = 0.0;
+int race = 1;
+int wp_i = 1;
+int wp_res = 5;
 // utility function
 static int sleep_dump(int seconds) {
     for (int s=seconds; s>0; s--) {
@@ -122,7 +125,7 @@ int main(){
 	}
 
 	printf("initializing controller...\n");
-	if (mb_controller_init(&g_D1_filter, &g_D2_filter, &g_D3_filter) < 0) {
+	if (mb_controller_init(&g_D1_filter, &g_D2_filter, &g_D3_filter, &sse) < 0) {
         fprintf(stderr,"controller initialization failed.\n");
         return -1;
     }
@@ -212,11 +215,11 @@ void balancebot_controller(){
 
     // Calculate controller outputs
     mb_controller_update(&mb_state, &mb_setpoints,
-            &g_D1_filter, &g_D2_filter, &g_D3_filter);
+            &g_D1_filter, &g_D2_filter, &g_D3_filter, sse);
 
     if(rc_get_state()!=EXITING){
-        //mb_motor_set(LEFT_MOTOR, mb_state.left_pwm);
-        //mb_motor_set(RIGHT_MOTOR, mb_state.right_pwm);
+        mb_motor_set(LEFT_MOTOR, mb_state.left_pwm);
+        mb_motor_set(RIGHT_MOTOR, mb_state.right_pwm);
     }
 
 	XBEE_getData();
@@ -299,7 +302,7 @@ void* setpoint_control_loop(void* ptr){
                 mb_setpoints.turn_velocity = turning_speed;
                 mb_setpoints.theta_ref = forward_speed;
                 mb_setpoints.wheel_angle += fwd_speed2dist(forward_speed);
-                mb_setpoints.heading_angle += trun_speed2angle(turning_speed)*5;
+                mb_setpoints.heading_angle = trun_speed2angle(turning_speed)*5;
                 if (mb_setpoints.heading_angle > M_PI) {
                     mb_setpoints.heading_angle -= 2*M_PI;
                 }
@@ -310,7 +313,7 @@ void* setpoint_control_loop(void* ptr){
                 // reset encoder
                 mb_setpoints.wheel_angle = 0.0;
                 mb_setpoints.heading_angle = 0.0;
-                if (mb_controller_init(&g_D1_filter, &g_D2_filter, &g_D3_filter) < 0) {
+                if (mb_controller_init(&g_D1_filter, &g_D2_filter, &g_D3_filter, &sse) < 0) {
                     fprintf(stderr,"controller initialization failed.\n");
                     return NULL;
                 }
@@ -322,6 +325,18 @@ void* setpoint_control_loop(void* ptr){
                 //mb_setpoints.wheel_angle = 0.5/WHEEL_DIAMETER/M_PI;
                 //mb_setpoints.heading_angle = 1.57;
                 //mb_setpoints.wheel_angle = 0.5/WHEEL_DIAMETER/M_PI;
+                ////// 11 meter racing
+                if (race==1){
+                    if (mb_odometry.x >= 0.8 * 11 * 2/ WHEEL_DIAMETER / wp_res * wp_i){
+                        wp_i += 1;
+                        if (wp_i > wp_res) {
+                            wp_i = wp_res;
+                        }
+                        mb_setpoints.wheel_angle =  11 * 2/ WHEEL_DIAMETER / wp_res * wp_i;
+                    }else{
+                        mb_setpoints.wheel_angle =  11 * 2/ WHEEL_DIAMETER / wp_res * wp_i;
+                    }
+                }
             }
 	 	    rc_nanosleep(1E9/RC_CTL_HZ);
 	    }
@@ -364,10 +379,10 @@ void* printf_loop(void* ptr){
 			printf("    θ    |");
 			printf("    φ    |");
 			printf("  yaw    |");
-			printf("  L Enc  |");
-			printf("  R Enc  |");
-			printf("    X    |");
-			printf("    Y    |");
+			// printf("  L Enc  |");
+			// printf("  R Enc  |");
+			// printf("    X    |");
+			// printf("    Y    |");
 			printf("    ψ    |");
             printf("   dist  |");
             printf("  manual |");
@@ -385,10 +400,10 @@ void* printf_loop(void* ptr){
 			printf("%7.3f  |", mb_state.theta);
 			printf("%7.3f  |", mb_state.phi);
 			printf("%7.3f  |", mb_state.yaw);
-			printf("%7d  |", mb_state.left_encoder);
-			printf("%7d  |", mb_state.right_encoder);
-			printf("%7.3f  |", mb_state.opti_x);
-			printf("%7.3f  |", mb_state.opti_y);
+			// printf("%7d  |", mb_state.left_encoder);
+			// printf("%7d  |", mb_state.right_encoder);
+			// printf("%7.3f  |", mb_state.opti_x);
+			// printf("%7.3f  |", mb_state.opti_y);
 			//printf("%7.3f  |", mb_state.opti_yaw);
             //printf("%7.3f  |", mb_state.dist_travelled);
             printf("%7.3f  |", mb_setpoints.heading_angle);
