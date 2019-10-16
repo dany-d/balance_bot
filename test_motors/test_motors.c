@@ -1,7 +1,7 @@
 /*******************************************************************************
 * test_motors.c
 *
-* 
+*
 *******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,7 +19,7 @@
 
 
 /*******************************************************************************
-* int main() 
+* int main()
 *
 *******************************************************************************/
 int main(){
@@ -49,7 +49,7 @@ int main(){
 	rc_make_pid_file();
 
 	// done initializing so set state to RUNNING
-	rc_set_state(RUNNING); 
+	rc_set_state(RUNNING);
 	// Keep looping until state changes to EXITING
 	while(rc_get_state()!=EXITING){
 		// handle other states
@@ -81,7 +81,7 @@ int main(){
 		}
 		rc_nanosleep(1E9);
 	}
-	
+
 	// exit cleanly
 	mb_motor_cleanup();
 	rc_remove_pid_file();   // remove pid file LAST
