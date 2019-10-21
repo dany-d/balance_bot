@@ -67,7 +67,22 @@ int main(){
 
 
     rc_set_state(RUNNING);
+
+    rc_mpu_data_t data;
     while(rc_get_state()!=EXITING){
+        if(!rc_mpu_read_accel(&data)) {
+            fprintf(stderr, "ERROR: failed to initialize adc\n");
+        }
+        fprintf(stdout,"accl X:%lf\n", data.accel[0]);
+        fprintf(stdout,"accl Y:%lf\n", data.accel[1]);
+        fprintf(stdout,"accl Z:%lf\n", data.accel[2]);
+
+        if(!rc_mpu_read_gyro(&data)) {
+            fprintf(stderr, "ERROR: failed to initialize adc\n");
+        }
+        fprintf(stdout,"gyro X:%lf\n", data.gyro[0]);
+        fprintf(stdout,"gyro Y:%lf\n", data.gyro[1]);
+        fprintf(stdout,"gyro Z:%lf\n", data.gyro[2]);
     	rc_nanosleep(1E9);
     }
 
