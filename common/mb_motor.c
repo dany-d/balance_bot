@@ -109,26 +109,26 @@ int mb_motor_set(int motor, double duty){
         if(duty<0){
             rc_gpio_set_value(MDIR1_CHIP,MDIR1_PIN, 0);
             duty = -duty;
-            fprintf(stderr, "Left Forward %f\n", duty);
+            //fprintf(stderr, "Left Backward %f\n", duty);
         }
         else{
             rc_gpio_set_value(MDIR1_CHIP,MDIR1_PIN, 1);
-            fprintf(stderr, "Left Backward %f\n", duty);
+            //fprintf(stderr, "Left Forward %f\n", duty);
         }
         rc_pwm_set_duty(1, 'A', duty);
     } else { // RIGHT_MOTOR
         if(duty<0){
-            rc_gpio_set_value(MDIR2_CHIP,MDIR2_PIN, 0);
+            rc_gpio_set_value(MDIR2_CHIP,MDIR2_PIN, 1);
             duty = -duty;
-            fprintf(stderr, "Right Forward %f\n", duty);
+            //fprintf(stderr, "Right Backward %f\n", duty);
         }
         else{
-            rc_gpio_set_value(MDIR2_CHIP,MDIR2_PIN, 1);
-            fprintf(stderr, "Right Backward %f\n", duty);
+            rc_gpio_set_value(MDIR2_CHIP,MDIR2_PIN, 0);
+            //fprintf(stderr, "Right Forward %f\n", duty);
         }
         rc_pwm_set_duty(1, 'B', duty);
     }
-    fprintf(stderr, "=============\n");
+    //fprintf(stderr, "=============\n");
     return 0;
 }
 
@@ -142,6 +142,15 @@ int mb_motor_set_all(double duty){
     if(unlikely(!init_flag)){
         printf("ERROR: trying to rc_set_motor_all before they have been initialized\n");
         return -1;
+    }
+    if(duty<0){
+        rc_gpio_set_value(MDIR1_CHIP,MDIR1_PIN, 0);
+        rc_gpio_set_value(MDIR2_CHIP,MDIR2_PIN, 1);
+        duty = -duty;
+    }
+    else{
+        rc_gpio_set_value(MDIR1_CHIP,MDIR1_PIN, 1);
+        rc_gpio_set_value(MDIR2_CHIP,MDIR2_PIN, 0);
     }
     rc_pwm_set_duty(1, 'A', duty);
     rc_pwm_set_duty(1, 'B', duty);

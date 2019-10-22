@@ -78,6 +78,7 @@ int main(){
 			//stop motors for 1s
 			mb_motor_disable();
 			rc_nanosleep(2E9);
+            fprintf(stderr, "Cycle complete\n");
 		}
 		rc_nanosleep(1E9);
 	}

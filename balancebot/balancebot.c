@@ -3,7 +3,7 @@
 *
 * Main template code for the BalanceBot Project
 * based on rc_balance
-* 
+*
 *******************************************************************************/
 
 #include <math.h>
@@ -24,7 +24,7 @@
 #include "balancebot.h"
 
 /*******************************************************************************
-* int main() 
+* int main()
 *
 *******************************************************************************/
 int main(){
@@ -97,7 +97,7 @@ int main(){
 	rc_mpu_config_t mpu_config = rc_mpu_default_config();
 	mpu_config.dmp_sample_rate = SAMPLE_RATE_HZ;
 	mpu_config.orient = ORIENTATION_Z_UP;
-
+    mpu_config.dmp_fetch_accel_gyro = 1;
 	// now set up the imu for dmp interrupt operation
 	if(rc_mpu_initialize_dmp(&mpu_data, mpu_config)){
 		printf("rc_mpu_initialize_failed\n");
@@ -129,7 +129,7 @@ int main(){
 
 	printf("we are running!!!...\n");
 	// done initializing so set state to RUNNING
-	rc_set_state(RUNNING); 
+	rc_set_state(RUNNING);
 
 	// Keep looping until state changes to EXITING
 	while(rc_get_state()!=EXITING){
@@ -140,13 +140,13 @@ int main(){
 		// always sleep at some point
 		rc_nanosleep(1E9);
 	}
-	
+
 	// exit cleanly
 	rc_mpu_power_off();
 	mb_motor_cleanup();
 	rc_led_cleanup();
 	rc_encoder_eqep_cleanup();
-	rc_remove_pid_file(); // remove pid file LAST 
+	rc_remove_pid_file(); // remove pid file LAST
 	return 0;
 }
 
@@ -158,7 +158,7 @@ int main(){
 * Called at SAMPLE_RATE_HZ
 *
 * TODO: You must implement this function to keep the balancebot balanced
-* 
+*
 *
 *******************************************************************************/
 void balancebot_controller(){
@@ -167,14 +167,20 @@ void balancebot_controller(){
 	pthread_mutex_lock(&state_mutex);
 	// Read IMU
 	mb_state.theta = mpu_data.dmp_TaitBryan[TB_PITCH_X];
+    float roll = mpu_data.dmp_TaitBryan[TB_ROLL_Y];
+    float yaw = mpu_data.dmp_TaitBryan[TB_YAW_Z];
+    float accx = mpu_data.accel[0];
+    float gyrox = mpu_data.gyro[0];
+    fprintf(stderr, "Roll, Yaw, accx, gyrox: %7.3f,%7.3f,%7.3f,%7.3f\n",roll, yaw,accx, gyrox);
+
 	// Read encoders
 	mb_state.left_encoder = rc_encoder_eqep_read(1);
 	mb_state.right_encoder = rc_encoder_eqep_read(2);
-    // Update odometry 
- 
+    // Update odometry
+
 
     // Calculate controller outputs
-    
+
     if(!mb_setpoints.manual_ctl){
     	//send motor commands
    	}
@@ -192,8 +198,8 @@ void balancebot_controller(){
 	mb_state.opti_roll = tb_array[0];
 	mb_state.opti_pitch = -tb_array[1]; //xBee quaternion is in Z-down, need Z-up
 	mb_state.opti_yaw = -tb_array[2];   //xBee quaternion is in Z-down, need Z-up
-	
-	
+
+
    	//unlock state mutex
     pthread_mutex_unlock(&state_mutex);
 
@@ -225,7 +231,7 @@ void* setpoint_control_loop(void* ptr){
 
 
 /*******************************************************************************
-* printf_loop() 
+* printf_loop()
 *
 * prints diagnostics to console
 * this only gets started if executing from terminal
@@ -255,7 +261,7 @@ void* printf_loop(void* ptr){
 			printf("\nPAUSED\n");
 		}
 		last_state = new_state;
-		
+
 		if(new_state == RUNNING){
 			printf("\r");
 			//Add Print stattements here, do not follow with /n
@@ -273,4 +279,4 @@ void* printf_loop(void* ptr){
 		rc_nanosleep(1E9/PRINTF_HZ);
 	}
 	return NULL;
-} 
+}
