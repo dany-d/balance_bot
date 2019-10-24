@@ -28,6 +28,10 @@
 
 #define D1_SATURATION_TIMEOUT   1
 
+
+double D1_KP = 0; // pid param
+double D1_KI = 0; // pid param
+double D1_KD = 0; // pid param
 /*******************************************************************************
 * int main()
 *
@@ -109,7 +113,7 @@ int main(){
 		return -1;
 	}
 
-	//rc_nanosleep(5E9); // wait for imu to stabilize
+	rc_nanosleep(5E9); // wait for imu to stabilize
 
 	//initialize state mutex
     pthread_mutex_init(&state_mutex, NULL);
@@ -117,7 +121,10 @@ int main(){
 
 	//attach controller function to IMU interrupt
 	printf("initializing controller...\n");
-	mb_controller_init();
+	if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD) < 0) {
+        fprintf(stderr,"controller initialization failed.\n");
+        return -1;
+    }
 
 	printf("initializing motors...\n");
 	mb_motor_init();
@@ -187,10 +194,6 @@ void balancebot_controller(){
     // Calculate controller outputs
     rc_filter_t D1 = RC_FILTER_INITIALIZER;
 
-    // read following parameters from file
-    const double D1_KP = 1.2;
-    const double D1_KI = 30;
-    const double D1_KD = 0.08;
 
     if(rc_filter_pid(&D1, D1_KP, D1_KI, D1_KD, 4*DT, DT)){
             fprintf(stderr,"ERROR in rc_filter_pid.\n");

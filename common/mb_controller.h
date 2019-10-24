@@ -3,7 +3,7 @@
 
 
 #include "mb_structs.h"
-#define CFG_PATH "pid.cfg"
+#define CFG_PATH "/home/debian/balancebot-f19/pid.cfg"
 
 int mb_controller_init();
 int mb_controller_load_config();

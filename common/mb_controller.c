@@ -19,38 +19,28 @@
 *******************************************************************************/
 
 
-int mb_controller_init(){
-    mb_controller_load_config();
-    /* TODO initialize your controllers here*/
-
-    return 0;
-}
-
-/*******************************************************************************
-* int mb_controller_load_config()
-*
-* this provides a basic configuration load routine
-* you can use this as is or modify it if you want a different format
-*
-* return 0 on success
-*
-*******************************************************************************/
-
-
-int mb_controller_load_config(){
-    FILE* file = fopen(CFG_PATH, "r");
-    if (file == NULL){
-        printf("Error opening %s\n", CFG_PATH );
+int mb_controller_init(double *D1_KP, double *D1_KI, double *D1_KD){
+    char param_name[100] = {0};
+    FILE *fp;
+    fp = fopen(CFG_PATH, "r");
+    if (fp == NULL) {
+        fprintf(stderr, "controller config file [%s] doesn't exist.\n", CFG_PATH);
+        return -1;
     }
-    /* TODO parse your config file here*/
-    fclose(file);
+    fscanf(fp, "%s %lf\n", param_name, D1_KP);
+    fprintf(stdout, "%s %lf\n", param_name, *D1_KP);
+    fscanf(fp, "%s %lf\n", param_name, D1_KI);
+    fprintf(stdout, "%s %lf\n", param_name, *D1_KI);
+    fscanf(fp, "%s %lf\n", param_name, D1_KD);
+    fprintf(stdout, "%s %lf\n", param_name, *D1_KD);
+    fclose(fp);
     return 0;
 }
 
 /*******************************************************************************
 * int mb_controller_update()
-* 
-* 
+*
+*
 * take inputs from the global mb_state
 * write outputs to the global mb_state
 *
@@ -68,7 +58,7 @@ int mb_controller_update(mb_state_t* mb_state){
 
 /*******************************************************************************
 * int mb_controller_cleanup()
-* 
+*
 * TODO: Free all resources associated with your controller
 *
 * return 0 on success
