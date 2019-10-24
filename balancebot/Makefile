@@ -3,7 +3,7 @@ TARGET = ../bin/balancebot
 
 CC			:= gcc
 LINKER		:= gcc -o
-CFLAGS		:= -std=c99 -c -Wall -g
+CFLAGS		:= -std=gnu99 -c -Wall -g
 LFLAGS		:= -lm -lrt -lpthread -l:librobotcontrol.so.1
 
 SOURCES		:= $(wildcard *.c)
@@ -17,7 +17,7 @@ OBJECTS		:= $(SOURCES:$%.c=$%.o)
 prefix		:= /usr/local
 RM			:= rm -f
 INSTALL		:= install -m 4755
-INSTALLDIR	:= install -d -m 755 
+INSTALLDIR	:= install -d -m 755
 
 LINK		:= ln -s -f
 LINKDIR		:= /etc/roboticscape
@@ -35,7 +35,7 @@ $(OBJECTS): %.o : %.c $(INCLUDES)
 	@$(CC) $(CFLAGS) -c $< -o $(@)
 	@echo "Compiled: "$<
 
-all: 
+all:
 	$(TARGET)
 
 debug:

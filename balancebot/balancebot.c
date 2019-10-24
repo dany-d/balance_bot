@@ -18,10 +18,15 @@
 #include <rc/led.h>
 #include <rc/pthread.h>
 #include <rc/encoder_eqep.h>
+#include <rc/math/filter.h>
 #include <rc/time.h>
 
+#include "../common/mb_defs.h"
+#include "../common/mb_motor.h"
 
 #include "balancebot.h"
+
+#define D1_SATURATION_TIMEOUT   1
 
 /*******************************************************************************
 * int main()
@@ -142,6 +147,8 @@ int main(){
 	}
 
 	// exit cleanly
+    printf("Exit Gracefully\n");
+    mb_motor_set_all(0);
 	rc_mpu_power_off();
 	mb_motor_cleanup();
 	rc_led_cleanup();
@@ -165,21 +172,43 @@ void balancebot_controller(){
 
 	//lock state mutex
 	pthread_mutex_lock(&state_mutex);
+
 	// Read IMU
-	mb_state.theta = mpu_data.dmp_TaitBryan[TB_PITCH_X];
-    float roll = mpu_data.dmp_TaitBryan[TB_ROLL_Y];
-    float yaw = mpu_data.dmp_TaitBryan[TB_YAW_Z];
-    float accx = mpu_data.accel[0];
-    float gyrox = mpu_data.gyro[0];
-    fprintf(stderr, "Roll, Yaw, accx, gyrox: %7.3f,%7.3f,%7.3f,%7.3f\n",roll, yaw,accx, gyrox);
+	mb_state.theta =mpu_data.dmp_TaitBryan[TB_PITCH_X]; // Z is toward down
+    double gyrox = mpu_data.gyro[0];
 
 	// Read encoders
 	mb_state.left_encoder = rc_encoder_eqep_read(1);
 	mb_state.right_encoder = rc_encoder_eqep_read(2);
+
     // Update odometry
 
 
     // Calculate controller outputs
+    rc_filter_t D1 = RC_FILTER_INITIALIZER;
+
+    // read following parameters from file
+    const double D1_KP = 1.2;
+    const double D1_KI = 30;
+    const double D1_KD = 0.08;
+
+    if(rc_filter_pid(&D1, D1_KP, D1_KI, D1_KD, 4*DT, DT)){
+            fprintf(stderr,"ERROR in rc_filter_pid.\n");
+            return;
+    }
+
+    // convert z angle toward up instead of toward down
+    if (mb_state.theta < 0){
+         mb_state.theta = -(mb_state.theta + M_PI);
+    }
+    if (mb_state.theta > 0){
+         mb_state.theta = M_PI - mb_state.theta;
+    }
+
+    double pwm_duty = rc_filter_march(&D1,(mb_state.theta));
+    mb_motor_set_all(pwm_duty);
+
+    //fprintf(stderr,"pwm_duty: %lf, theta: %lf, gyrox:%lf\n", pwm_duty, mb_state.theta, gyrox);
 
     if(!mb_setpoints.manual_ctl){
     	//send motor commands
@@ -198,7 +227,6 @@ void balancebot_controller(){
 	mb_state.opti_roll = tb_array[0];
 	mb_state.opti_pitch = -tb_array[1]; //xBee quaternion is in Z-down, need Z-up
 	mb_state.opti_yaw = -tb_array[2];   //xBee quaternion is in Z-down, need Z-up
-
 
    	//unlock state mutex
     pthread_mutex_unlock(&state_mutex);
