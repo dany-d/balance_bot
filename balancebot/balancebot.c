@@ -105,7 +105,7 @@ int main(){
 	// set up mpu configuration
 	rc_mpu_config_t mpu_config = rc_mpu_default_config();
 	mpu_config.dmp_sample_rate = SAMPLE_RATE_HZ;
-	mpu_config.orient = ORIENTATION_Z_UP;
+	mpu_config.orient = ORIENTATION_Z_DOWN;
     mpu_config.dmp_fetch_accel_gyro = 1;
 	// now set up the imu for dmp interrupt operation
 	if(rc_mpu_initialize_dmp(&mpu_data, mpu_config)){
@@ -113,18 +113,21 @@ int main(){
 		return -1;
 	}
 
-	rc_nanosleep(5E9); // wait for imu to stabilize
-
-	//initialize state mutex
-    pthread_mutex_init(&state_mutex, NULL);
-    pthread_mutex_init(&setpoint_mutex, NULL);
-
-	//attach controller function to IMU interrupt
 	printf("initializing controller...\n");
 	if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD) < 0) {
         fprintf(stderr,"controller initialization failed.\n");
         return -1;
-    }
+    	}
+
+	for(int i = 10; i>0; i--) {
+		printf("wait for imu stable for %d sec\n", i);
+		rc_nanosleep(1E9); // wait for imu to stabilize
+	}
+
+
+	//initialize state mutex
+    pthread_mutex_init(&state_mutex, NULL);
+    pthread_mutex_init(&setpoint_mutex, NULL);
 
 	printf("initializing motors...\n");
 	mb_motor_init();
@@ -136,6 +139,7 @@ int main(){
 	printf("initializing odometry...\n");
 	mb_odometry_init(&mb_odometry, 0.0,0.0,0.0);
 
+	//attach controller function to IMU interrupt
 	printf("attaching imu interupt...\n");
 	rc_mpu_set_dmp_callback(&balancebot_controller);
 
@@ -154,8 +158,8 @@ int main(){
 	}
 
 	// exit cleanly
-    printf("Exit Gracefully\n");
-    mb_motor_set_all(0);
+    	printf("Exit Gracefully\n");
+    	mb_motor_set_all(0);
 	rc_mpu_power_off();
 	mb_motor_cleanup();
 	rc_led_cleanup();
@@ -201,12 +205,14 @@ void balancebot_controller(){
     }
 
     // convert z angle toward up instead of toward down
+    /*
     if (mb_state.theta < 0){
          mb_state.theta = -(mb_state.theta + M_PI);
     }
     if (mb_state.theta > 0){
          mb_state.theta = M_PI - mb_state.theta;
     }
+    */
 
     double pwm_duty = rc_filter_march(&D1,(mb_state.theta));
     mb_motor_set_all(pwm_duty);
