@@ -139,6 +139,8 @@ int main(){
 	printf("resetting encoders...\n");
 	rc_encoder_eqep_write(1, 0);
 	rc_encoder_eqep_write(2, 0);
+	mb_state.last_left_encoder = 0;
+	mb_state.last_right_encoder = 0;
 
 	printf("initializing odometry...\n");
 	mb_odometry_init(&mb_odometry, 0.0,0.0,0.0);
@@ -175,6 +177,7 @@ int main(){
 	// exit cleanly
     printf("Exit Gracefully\n");
     mb_motor_set_all(0);
+    rc_nanosleep(1E9);
     rc_filter_free(&D1);
     rc_filter_free(&D2);
 	rc_mpu_power_off();
@@ -208,9 +211,11 @@ void balancebot_controller(){
 	// Read encoders
 	mb_state.left_encoder = rc_encoder_eqep_read(1);
 	mb_state.right_encoder = rc_encoder_eqep_read(2);
-    // get distance travelled output of block G2
-    double dist_travelled = (double) -1.0*mb_state.left_encoder/ENCODER_RES*WHEEL_DIAMETER;
 
+    // get distance travelled output of block G2
+	int diff_left_encoder = -(mb_state.left_encoder-mb_state.last_left_encoder);
+	double diff_wheel_angle = 2 * 3.14 * diff_left_encoder/ENCODER_RES/GEAR_RATIO;
+	double dist_travelled = -WHEEL_DIAMETER*mb_state.left_encoder/ENCODER_RES/GEAR_RATIO;
     // Update odometry
 
 
@@ -226,11 +231,15 @@ void balancebot_controller(){
          mb_state.theta = M_PI - mb_state.theta;
     }
     */
+    fprintf(stderr, "%d\n", diff_left_encoder);
     fprintf(stderr, "%f\n", dist_travelled);
     // implement outerloop here
-    double pwm_duty = rc_filter_march(&D1,(-mb_state.theta));
+    double theta_ref = rc_filter_march(&D2, (0.05-dist_travelled));
+    double pwm_duty = rc_filter_march(&D1, (theta_ref-mb_state.theta));
     mb_motor_set_all(pwm_duty);
     //fprintf(stderr,"pwm_duty: %lf, theta: %lf, gyrox:%lf\n", pwm_duty, mb_state.theta, gyrox);
+
+    mb_state.last_left_encoder = mb_state.left_encoder;
 
     if(!mb_setpoints.manual_ctl){
     	//send motor commands
