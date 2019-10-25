@@ -28,10 +28,14 @@
 
 #define D1_SATURATION_TIMEOUT   1
 
-
+rc_filter_t D1 = RC_FILTER_INITIALIZER;
+rc_filter_t D2 = RC_FILTER_INITIALIZER;
 double D1_KP = 0; // pid param
 double D1_KI = 0; // pid param
 double D1_KD = 0; // pid param
+double D2_KP = 0;
+double D2_KI = 0;
+double D2_KD = 0;
 /*******************************************************************************
 * int main()
 *
@@ -114,7 +118,7 @@ int main(){
 	}
 
 	printf("initializing controller...\n");
-	if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD) < 0) {
+	if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD, &D2_KP, &D2_KI, &D2_KD) < 0) {
         fprintf(stderr,"controller initialization failed.\n");
         return -1;
     	}
@@ -139,6 +143,17 @@ int main(){
 	printf("initializing odometry...\n");
 	mb_odometry_init(&mb_odometry, 0.0,0.0,0.0);
 
+    if(rc_filter_pid(&D1, D1_KP, D1_KI, D1_KD, 4*DT, DT)){
+            fprintf(stderr,"ERROR in rc_filter_pid.\n");
+            return -1;
+    }
+    rc_filter_enable_saturation(&D1, -1.0, 1.0);
+
+    if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 4*DT, DT)){
+            fprintf(stderr,"ERROR in rc_filter_pid.\n");
+            return -1;
+    }
+
 	//attach controller function to IMU interrupt
 	printf("attaching imu interupt...\n");
 	rc_mpu_set_dmp_callback(&balancebot_controller);
@@ -158,8 +173,10 @@ int main(){
 	}
 
 	// exit cleanly
-    	printf("Exit Gracefully\n");
-    	mb_motor_set_all(0);
+    printf("Exit Gracefully\n");
+    mb_motor_set_all(0);
+    rc_filter_free(&D1);
+    rc_filter_free(&D2);
 	rc_mpu_power_off();
 	mb_motor_cleanup();
 	rc_led_cleanup();
@@ -191,18 +208,14 @@ void balancebot_controller(){
 	// Read encoders
 	mb_state.left_encoder = rc_encoder_eqep_read(1);
 	mb_state.right_encoder = rc_encoder_eqep_read(2);
+    // get distance travelled output of block G2
+    double dist_travelled = (double) -1.0*mb_state.left_encoder/ENCODER_RES*WHEEL_DIAMETER;
 
     // Update odometry
 
 
     // Calculate controller outputs
-    rc_filter_t D1 = RC_FILTER_INITIALIZER;
 
-
-    if(rc_filter_pid(&D1, D1_KP, D1_KI, D1_KD, 4*DT, DT)){
-            fprintf(stderr,"ERROR in rc_filter_pid.\n");
-            return;
-    }
 
     // convert z angle toward up instead of toward down
     /*
@@ -213,10 +226,10 @@ void balancebot_controller(){
          mb_state.theta = M_PI - mb_state.theta;
     }
     */
-
-    double pwm_duty = rc_filter_march(&D1,(mb_state.theta));
+    fprintf(stderr, "%f\n", dist_travelled);
+    // implement outerloop here
+    double pwm_duty = rc_filter_march(&D1,(-mb_state.theta));
     mb_motor_set_all(pwm_duty);
-
     //fprintf(stderr,"pwm_duty: %lf, theta: %lf, gyrox:%lf\n", pwm_duty, mb_state.theta, gyrox);
 
     if(!mb_setpoints.manual_ctl){
