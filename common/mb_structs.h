@@ -20,6 +20,10 @@ struct mb_state{
     float opti_yaw;
 
     //TODO: Add more variables to this state as needed
+    int  last_left_encoder;
+    int  last_right_encoder;
+    double dist_travelled;
+    double wheel_angle;
 };
 
 typedef struct mb_setpoints mb_setpoints_t;

@@ -155,6 +155,7 @@ int main(){
             fprintf(stderr,"ERROR in rc_filter_pid.\n");
             return -1;
     }
+    rc_filter_enable_saturation(&D2, -0.1, 0.1);
 
 	//attach controller function to IMU interrupt
 	printf("attaching imu interupt...\n");
@@ -176,10 +177,9 @@ int main(){
 
 	// exit cleanly
     printf("Exit Gracefully\n");
-    mb_motor_set_all(0);
-    rc_nanosleep(1E9);
     rc_filter_free(&D1);
     rc_filter_free(&D2);
+    rc_nanosleep(1E9);
 	rc_mpu_power_off();
 	mb_motor_cleanup();
 	rc_led_cleanup();
@@ -215,7 +215,11 @@ void balancebot_controller(){
     // get distance travelled output of block G2
 	int diff_left_encoder = -(mb_state.left_encoder-mb_state.last_left_encoder);
 	double diff_wheel_angle = 2 * 3.14 * diff_left_encoder/ENCODER_RES/GEAR_RATIO;
-	double dist_travelled = -WHEEL_DIAMETER*mb_state.left_encoder/ENCODER_RES/GEAR_RATIO;
+    double left_phi = -2 *3.14 * mb_state.left_encoder/ENCODER_RES/GEAR_RATIO;
+    double right_phi = 2 *3.14 * mb_state.right_encoder/ENCODER_RES/GEAR_RATIO;
+    mb_state.phi = (left_phi+right_phi)/2;
+    mb_state.phi = left_phi;
+	mb_state.dist_travelled = -WHEEL_DIAMETER*mb_state.left_encoder/ENCODER_RES/GEAR_RATIO;
     // Update odometry
 
 
@@ -231,12 +235,13 @@ void balancebot_controller(){
          mb_state.theta = M_PI - mb_state.theta;
     }
     */
-    fprintf(stderr, "%d\n", diff_left_encoder);
-    fprintf(stderr, "%f\n", dist_travelled);
+    //fprintf(stderr, "%f\n", wheel_angle);
     // implement outerloop here
-    double theta_ref = rc_filter_march(&D2, (0.05-dist_travelled));
-    double pwm_duty = rc_filter_march(&D1, (theta_ref-mb_state.theta));
-    mb_motor_set_all(pwm_duty);
+    if(rc_get_state()!=EXITING){
+        double theta_ref = rc_filter_march(&D2, (3.14*2-mb_state.phi));
+        double pwm_duty = rc_filter_march(&D1, (theta_ref+0.01-mb_state.theta));
+        mb_motor_set_all(pwm_duty);
+    }
     //fprintf(stderr,"pwm_duty: %lf, theta: %lf, gyrox:%lf\n", pwm_duty, mb_state.theta, gyrox);
 
     mb_state.last_left_encoder = mb_state.left_encoder;
@@ -261,6 +266,10 @@ void balancebot_controller(){
 
    	//unlock state mutex
     pthread_mutex_unlock(&state_mutex);
+    if(rc_get_state()==EXITING){
+        mb_motor_set_all(0);
+        return;
+    }
 
 }
 
@@ -313,7 +322,7 @@ void* printf_loop(void* ptr){
 			printf("    X    |");
 			printf("    Y    |");
 			printf("    ψ    |");
-
+            printf("   dist  |");
 			printf("\n");
 		}
 		else if(new_state==PAUSED && last_state!=PAUSED){
@@ -332,6 +341,7 @@ void* printf_loop(void* ptr){
 			printf("%7.3f  |", mb_state.opti_x);
 			printf("%7.3f  |", mb_state.opti_y);
 			printf("%7.3f  |", mb_state.opti_yaw);
+            printf("%7.3f  |", mb_state.dist_travelled);
 			pthread_mutex_unlock(&state_mutex);
 			fflush(stdout);
 		}
