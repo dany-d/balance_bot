@@ -184,10 +184,10 @@ int main(){
 	mb_motor_cleanup();
 	rc_led_cleanup();
 	rc_encoder_eqep_cleanup();
+    rc_dsm_cleanup();
 	rc_remove_pid_file(); // remove pid file LAST
 	return 0;
 }
-
 
 /*******************************************************************************
 * void balancebot_controller()
@@ -285,18 +285,19 @@ void* setpoint_control_loop(void* ptr){
 
 	while(1){
 
-		if(rc_dsm_is_new_data()){
-				// TODO: Handle the DSM data from the Spektrum radio reciever
-				// You may should implement switching between manual and autonomous mode
-				// using channel 5 of the DSM data.
+		if(rc_dsm_is_new_data()   ){
+			// TODO: Handle the DSM data from the Spektrum radio reciever
+			// You may should implement switching between manual and autonomous mode
+			// using channel 5 of the DSM data.
+            int channels = rc_dsm_channels();
+            for(int i=0;i<channels;i++){
+                //printf("%d:% 0.2f \n", i+1, rc_dsm_ch_normalized(i+1));
+            }
 		}
 	 	rc_nanosleep(1E9 / RC_CTL_HZ);
 	}
 	return NULL;
 }
-
-
-
 
 /*******************************************************************************
 * printf_loop()
