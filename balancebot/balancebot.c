@@ -205,7 +205,8 @@ void balancebot_controller(){
 	pthread_mutex_lock(&state_mutex);
 
 	// Read IMU
-	mb_state.theta =mpu_data.dmp_TaitBryan[TB_PITCH_X]; // Z is toward down
+	mb_state.theta = mpu_data.dmp_TaitBryan[TB_PITCH_X];
+    mb_state.yaw = mpu_data.dmp_TaitBryan[TB_YAW_Z];
     double gyrox = mpu_data.gyro[0];
 
 	// Read encoders
@@ -225,16 +226,6 @@ void balancebot_controller(){
 
     // Calculate controller outputs
 
-
-    // convert z angle toward up instead of toward down
-    /*
-    if (mb_state.theta < 0){
-         mb_state.theta = -(mb_state.theta + M_PI);
-    }
-    if (mb_state.theta > 0){
-         mb_state.theta = M_PI - mb_state.theta;
-    }
-    */
     //fprintf(stderr, "%f\n", wheel_angle);
     // implement outerloop here
     if(rc_get_state()!=EXITING){
@@ -281,20 +272,41 @@ void balancebot_controller(){
 *
 *
 *******************************************************************************/
+static float fwd_speed2angle(float speed) {
+    // input is m/s
+    float rad_s = speed/WHEEL_DIAMETER/M_PI; // m/s to rad/s
+    return rad_s/RC_CTL_HZ;
+}
+static float trun_speed2angle(float speed) {
+    // input is rad/s
+    return speed/RC_CTL_HZ;
+}
 void* setpoint_control_loop(void* ptr){
+    float forward_speed = 0;
+    float turning_speed = 0;
+    float margin = 0.1; // if dsm value is smaller than the margin, setting to zero
 
 	while(1){
-
 		if(rc_dsm_is_new_data()   ){
 			// TODO: Handle the DSM data from the Spektrum radio reciever
 			// You may should implement switching between manual and autonomous mode
 			// using channel 5 of the DSM data.
-            int channels = rc_dsm_channels();
-            for(int i=0;i<channels;i++){
-                //printf("%d:% 0.2f \n", i+1, rc_dsm_ch_normalized(i+1));
-            }
+            forward_speed =  rc_dsm_ch_normalized(FOWARD_CHANNEL); // percentage -1.0 ~ 1.0
+            turning_speed =  rc_dsm_ch_normalized(TURNING_CHANNEL);
+
+            // margin
+            if (fabs(forward_speed)<margin) forward_speed = 0;
+            if (fabs(turning_speed)<margin) turning_speed = 0;
+            // from normalized value to speed
+            forward_speed = MAX_FWD_SPEED*forward_speed;      // m/s
+            turning_speed = MAX_TURN_SPEED*turning_speed;   // rad/s
+            // set value to global data structure
+            mb_setpoints.fwd_velocity = forward_speed;
+            mb_setpoints.turn_velocity = turning_speed;
+            mb_setpoints.wheel_angle += fwd_speed2angle(forward_speed);
+            mb_setpoints.heading_angle += trun_speed2angle(turning_speed);
 		}
-	 	rc_nanosleep(1E9 / RC_CTL_HZ);
+	 	rc_nanosleep(1E9/RC_CTL_HZ);
 	}
 	return NULL;
 }
@@ -318,6 +330,7 @@ void* printf_loop(void* ptr){
 			printf("\n");
 			printf("    θ    |");
 			printf("    φ    |");
+			printf("  yaw    |");
 			printf("  L Enc  |");
 			printf("  R Enc  |");
 			printf("    X    |");
@@ -337,12 +350,15 @@ void* printf_loop(void* ptr){
 			pthread_mutex_lock(&state_mutex);
 			printf("%7.3f  |", mb_state.theta);
 			printf("%7.3f  |", mb_state.phi);
+			printf("%7.3f  |", mb_state.yaw);
 			printf("%7d  |", mb_state.left_encoder);
 			printf("%7d  |", mb_state.right_encoder);
 			printf("%7.3f  |", mb_state.opti_x);
 			printf("%7.3f  |", mb_state.opti_y);
-			printf("%7.3f  |", mb_state.opti_yaw);
-            printf("%7.3f  |", mb_state.dist_travelled);
+			//printf("%7.3f  |", mb_state.opti_yaw);
+            //printf("%7.3f  |", mb_state.dist_travelled);
+			printf("%7.3f  |", mb_setpoints.wheel_angle);
+            printf("%7.3f  |", mb_setpoints.heading_angle);
 			pthread_mutex_unlock(&state_mutex);
 			fflush(stdout);
 		}

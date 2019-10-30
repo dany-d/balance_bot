@@ -33,5 +33,9 @@
 #define DT                       0.01 // 1/sample_rate
 #define PRINTF_HZ                  10 // rate of print loop
 #define RC_CTL_HZ                  25 // rate of RC data update
+#define FOWARD_CHANNEL              1 // dsm channel
+#define TURNING_CHANNEL             2 // dsm channel
+#define MAX_FWD_SPEED               0.5 // m/s
+#define MAX_TURN_SPEED              1 // rad/s
 
 #endif

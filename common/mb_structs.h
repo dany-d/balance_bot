@@ -6,6 +6,7 @@ struct mb_state{
     // raw sensor inputs
     float   theta;             // body angle (rad)
     float   phi;               // average wheel angle (rad)
+    float   yaw;               // heading angle (rad)
     int     left_encoder;      // left encoder counts since last reading
     int     right_encoder;     // right encoder counts since last reading
 
@@ -22,8 +23,7 @@ struct mb_state{
     //TODO: Add more variables to this state as needed
     int  last_left_encoder;
     int  last_right_encoder;
-    double dist_travelled;
-    double wheel_angle;
+    float dist_travelled;
 };
 
 typedef struct mb_setpoints mb_setpoints_t;
@@ -31,6 +31,8 @@ struct mb_setpoints{
 
     float fwd_velocity; // fwd velocity in m/s
     float turn_velocity; // turn velocity in rad/s
+    float wheel_angle; // mapping to phi
+    float heading_angle; // mapping to yaw
     int manual_ctl;
 };
 
