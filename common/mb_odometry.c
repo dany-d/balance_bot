@@ -16,8 +16,8 @@ void mb_odometry_init(float x, float y, float psi){
 
 void mb_odometry_update(){
 /* TODO */
-    int diff_left_encoder = -(mb_state->left_encoder-mb_state->last_left_encoder);
-    int diff_right_encoder = (mb_state->right_encoder-mb_state->last_right_encoder);
+    int diff_left_encoder = -(mb_state.left_encoder-mb_state.last_left_encoder);
+    int diff_right_encoder = (mb_state.right_encoder-mb_state.last_right_encoder);
     double diff_left_wheel_dist = WHEEL_DIAMETER * M_PI * diff_left_encoder/ENCODER_RES/GEAR_RATIO;
     double diff_right_wheel_dist = WHEEL_DIAMETER * M_PI * diff_right_encoder/ENCODER_RES/GEAR_RATIO;
     double diff_psi = (diff_right_wheel_dist - diff_left_encoder)/WHEEL_BASE;
