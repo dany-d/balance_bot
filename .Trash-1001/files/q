@@ -1,0 +1,124 @@
+[33mcommit 2aac4f59140f53b12d7dce08e8c8fbcdd1827e55[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Demo User <debian@beaglebone.localdomain>
+Date:   Tue Aug 6 19:39:45 2019 +0000
+
+    commiting with controlling manual mode with theta_ref
+
+[33mcommit d9e66795d42911288ec3f8902b62931270000cb7[m
+Author: Demo User <debian@beaglebone.localdomain>
+Date:   Tue Aug 6 18:45:09 2019 +0000
+
+    wheel angle outer loop
+
+[33mcommit 349381a813e7ff9b900baf04909ce1fd3a3d3b6c[m
+Author: Tor <tors@umich.edu>
+Date:   Sat Nov 2 00:44:40 2019 -0400
+
+    still tuning
+
+[33mcommit dfa84116051eeb8a3788b548b913d86b77c778e5[m
+Author: haochen <haochenw@umich.edu>
+Date:   Wed Oct 30 14:35:40 2019 -0400
+
+    changes in odometry
+
+[33mcommit f8bb2200ce0f686dafc26f993cba6e93e8132226[m
+Author: tim-ts-chu <tim.ts.chu@gmail.com>
+Date:   Wed Oct 30 06:33:11 2019 +0000
+
+    1. add DSM reading function
+    2. save data into mb_setpoint structure
+
+[33mcommit 264749443cada9cef0d69e1af67fd198016e9c2b[m
+Author: Haochen Wu <chenaaron@0587406127.wireless.umich.net>
+Date:   Mon Oct 28 14:10:38 2019 -0400
+
+    pid
+
+[33mcommit 54aca7d1d745088d9689ccf8cfc2dd96a7994240[m
+Author: Tor <tors@umich.edu>
+Date:   Mon Oct 28 00:39:25 2019 -0400
+
+    1. pair up receiver with transmitter
+    2. read dsm data from remote controller
+    3. remove unnecessary files
+
+[33mcommit 1a5e8b5b5ae707bebba14c0116a1dceb9d51f1f2[m
+Author: Tor <tors@umich.edu>
+Date:   Sat Oct 26 17:44:43 2019 -0400
+
+    tuning outer loop
+
+[33mcommit 00606bdaeb6dc98209cff756923b61d82f683a4d[m
+Author: haoxiang <hxwu@umich.edu>
+Date:   Fri Oct 25 16:39:41 2019 -0400
+
+    outerloop okay
+
+[33mcommit 7376dc9397326a422367e5f86570dfa26122969d[m
+Author: Tor <tors@umich.edu>
+Date:   Fri Oct 25 02:58:23 2019 -0400
+
+    innerloop good
+
+[33mcommit a852476170772ae7edf07e05a3707030a20f8254[m
+Author: tim-ts-chu <tim.ts.chu@gmail.com>
+Date:   Fri Oct 25 06:03:59 2019 +0000
+
+    remove unnecessary files from git
+
+[33mcommit 4dbda32e5dfcabe657385fb3f0e64b96b430955f[m
+Author: Tor <tors@umich.edu>
+Date:   Thu Oct 24 19:24:21 2019 -0400
+
+    1. read pid configuration from pid.cfg file
+    2. tunning pid parameters
+
+[33mcommit 3f2fcb841f7b55bb48db03b8dc2f66d62fd75f53[m
+Author: Tor <tors@umich.edu>
+Date:   Thu Oct 24 19:24:21 2019 -0400
+
+    read pid configuration from pid.cfg file
+
+[33mcommit 9cc17e856b11319ab0891233087e8c175175c7c2[m
+Author: Tor <tors@umich.edu>
+Date:   Thu Oct 24 18:21:46 2019 -0400
+
+    1. trying to balance using pid
+    2. fix build fail by modifiying makefile
+
+[33mcommit f9054f408af7a23e595812fb88d54214cda0c550[m
+Author: Haochen Wu <chenaaron@0587426588.wireless.umich.net>
+Date:   Wed Oct 23 16:00:56 2019 -0400
+
+    add pid matlab file
+
+[33mcommit ce3e4828b7d52f4133e992409fd5e6428d535f1b[m
+Author: Tor <tors@umich.edu>
+Date:   Mon Oct 21 20:26:24 2019 -0400
+
+    collect gryo data for calculating the inertia
+
+[33mcommit ddf8ef3f38f19237db0c74111465a858b2aceb8d[m
+Author: tim-ts-chu <tim.ts.chu@gmail.com>
+Date:   Mon Oct 21 18:07:57 2019 +0000
+
+    try to get gyro and accel
+
+[33mcommit 1a7e81cdc0afbdab161f6b9271299b8a63d6b294[m
+Author: Tor <tors@umich.edu>
+Date:   Wed Oct 16 16:12:01 2019 -0400
+
+    test motor works~
+
+[33mcommit 4653f8eda625c48be1a9b35704517cc1bc251d94[m
+Author: Ji Hwang Kim <jihwangk@umich.edu>
+Date:   Tue Oct 15 19:19:04 2019 -0400
+
+    Motor params binary and extra readme's
+
+[33mcommit 6e69102d52fbfc61afa5452cfe8f725b712e423a[m
+Author: Mohie <mohie@umich.edu>
+Date:   Sun Jul 21 16:44:41 2019 -0400
+
+    Initial Commit
