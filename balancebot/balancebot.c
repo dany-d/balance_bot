@@ -147,7 +147,7 @@ int main(){
 	mb_state.last_right_encoder = 0;
 
 	printf("initializing odometry...\n");
-	mb_odometry_init(&mb_odometry, 0.0,0.0,0.0);
+	mb_odometry_init(0.0,0.0,0.0);
 
     if(rc_filter_pid(&D1, D1_KP, D1_KI, D1_KD, 4*DT, DT)){
             fprintf(stderr,"ERROR in rc_filter_pid.\n");
@@ -245,6 +245,7 @@ void balancebot_controller(){
     double avg_encoder = (-mb_state.left_encoder+mb_state.right_encoder)/2.0;
 	mb_state.dist_travelled = WHEEL_DIAMETER * M_PI * avg_encoder/ENCODER_RES/GEAR_RATIO;
     // Update odometry
+    mb_odometry_update();
 
 
     // Calculate controller outputs
@@ -404,6 +405,16 @@ void* setpoint_control_loop(void* ptr){
 *******************************************************************************/
 void* printf_loop(void* ptr){
 	rc_state_t last_state, new_state; // keep track of last state
+
+    // dump odometry data into file
+    char odm_data_path[] = "odometry.csv";
+    FILE *fp = NULL;
+    fp = fopen(odm_data_path, "r");
+    if (fp == NULL) {
+        fprintf(stderr, "controller config file [%s] doesn't exist.\n", odm_data_path);
+        return NULL;
+    }
+
 	while(rc_get_state()!=EXITING){
 		new_state = rc_get_state();
 		// check if this is the first time since being paused
@@ -447,7 +458,9 @@ void* printf_loop(void* ptr){
 			pthread_mutex_unlock(&state_mutex);
 			fflush(stdout);
 		}
+        fprintf(fp, "%.4f, %.4f, %.4f\n", mb_odometry.x, mb_odometry.y, mb_odometry.psi);
 		rc_nanosleep(1E9/PRINTF_HZ);
 	}
+    fclose(fp);
 	return NULL;
 }
