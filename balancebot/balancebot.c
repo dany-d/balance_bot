@@ -30,12 +30,16 @@
 
 rc_filter_t D1 = RC_FILTER_INITIALIZER;
 rc_filter_t D2 = RC_FILTER_INITIALIZER;
+rc_filter_t D3 = RC_FILTER_INITIALIZER;
 double D1_KP = 0; // pid param
 double D1_KI = 0; // pid param
 double D1_KD = 0; // pid param
 double D2_KP = 0;
 double D2_KI = 0;
 double D2_KD = 0;
+double D3_KP = 0;
+double D3_KI = 0;
+double D3_KD = 0;
 /*******************************************************************************
 * int main()
 *
@@ -118,12 +122,12 @@ int main(){
 	}
 
 	printf("initializing controller...\n");
-	if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD, &D2_KP, &D2_KI, &D2_KD) < 0) {
+	if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD, &D2_KP, &D2_KI, &D2_KD, &D3_KP, &D3_KI, &D3_KD) < 0) {
         fprintf(stderr,"controller initialization failed.\n");
         return -1;
-    	}
+    }
 
-	for(int i = 10; i>0; i--) {
+	for(int i = 5; i>0; i--) {
 		printf("wait for imu stable for %d sec\n", i);
 		rc_nanosleep(1E9); // wait for imu to stabilize
 	}
@@ -150,12 +154,20 @@ int main(){
             return -1;
     }
     rc_filter_enable_saturation(&D1, -1.0, 1.0);
+    rc_filter_enable_soft_start(&D1, 0.5);
 
-    if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 4*DT, DT)){
+    if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 19*DT, DT)){
             fprintf(stderr,"ERROR in rc_filter_pid.\n");
             return -1;
     }
-    rc_filter_enable_saturation(&D2, -0.1, 0.1);
+    rc_filter_enable_saturation(&D2, -0.2, 0.2);
+    rc_filter_enable_soft_start(&D2, 0.5);
+
+    if(rc_filter_pid(&D3, D3_KP, D3_KI, D3_KD, 4*DT, DT)){
+        fprintf(stderr,"ERROR in rc_filter_pid.\n");
+        return -1;
+    }
+    rc_filter_enable_saturation(&D3, -0.5, 0.5);
 
 	//attach controller function to IMU interrupt
 	printf("attaching imu interupt...\n");
@@ -199,6 +211,17 @@ int main(){
 *
 *
 *******************************************************************************/
+static float saturate(float input) {
+    if (input < -1.0) {
+        return -1.0;
+    }
+    else if (input > 1.0) {
+        return 1.0;
+    }else{
+        return input;
+    }
+}
+
 void balancebot_controller(){
 
 	//lock state mutex
@@ -215,12 +238,12 @@ void balancebot_controller(){
 
     // get distance travelled output of block G2
 	int diff_left_encoder = -(mb_state.left_encoder-mb_state.last_left_encoder);
-	double diff_wheel_angle = 2 * 3.14 * diff_left_encoder/ENCODER_RES/GEAR_RATIO;
     double left_phi = -2 *3.14 * mb_state.left_encoder/ENCODER_RES/GEAR_RATIO;
     double right_phi = 2 *3.14 * mb_state.right_encoder/ENCODER_RES/GEAR_RATIO;
     mb_state.phi = (left_phi+right_phi)/2;
-    mb_state.phi = left_phi;
-	mb_state.dist_travelled = -WHEEL_DIAMETER*mb_state.left_encoder/ENCODER_RES/GEAR_RATIO;
+    //mb_state.phi = left_phi;
+    double avg_encoder = (-mb_state.left_encoder+mb_state.right_encoder)/2.0;
+	mb_state.dist_travelled = WHEEL_DIAMETER * M_PI * avg_encoder/ENCODER_RES/GEAR_RATIO;
     // Update odometry
 
 
@@ -229,9 +252,16 @@ void balancebot_controller(){
     //fprintf(stderr, "%f\n", wheel_angle);
     // implement outerloop here
     if(rc_get_state()!=EXITING){
-        double theta_ref = rc_filter_march(&D2, (3.14*2-mb_state.phi));
-        double pwm_duty = rc_filter_march(&D1, (theta_ref+0.01-mb_state.theta));
-        mb_motor_set_all(pwm_duty);
+        double dist_ref = 1;//mb_setpoints.wheel_angle;
+        double theta_ref = rc_filter_march(&D2, (0.5-mb_state.dist_travelled));
+        double pwm_duty = rc_filter_march(&D1, (theta_ref+0.035-mb_state.theta));
+        //double turning_pwm_duty = rc_filter_march(&D3, (mb_setpoints.heading_angle-mb_state.yaw));
+        double turning_pwm_duty = mb_setpoints.heading_angle;
+        //mb_motor_set_all(pwm_duty);
+
+        mb_motor_set(LEFT_MOTOR, saturate(-turning_pwm_duty+pwm_duty));
+        mb_motor_set(RIGHT_MOTOR, saturate(turning_pwm_duty+pwm_duty));
+
     }
     //fprintf(stderr,"pwm_duty: %lf, theta: %lf, gyrox:%lf\n", pwm_duty, mb_state.theta, gyrox);
 
@@ -272,7 +302,7 @@ void balancebot_controller(){
 *
 *
 *******************************************************************************/
-static float fwd_speed2angle(float speed) {
+static float fwd_speed2dist(float speed) {
     // input is m/s
     float rad_s = speed/WHEEL_DIAMETER/M_PI; // m/s to rad/s
     return rad_s/RC_CTL_HZ;
@@ -284,7 +314,10 @@ static float trun_speed2angle(float speed) {
 void* setpoint_control_loop(void* ptr){
     float forward_speed = 0;
     float turning_speed = 0;
+    float manual_ctl = 0;
     float margin = 0.1; // if dsm value is smaller than the margin, setting to zero
+
+    int last_mannul_ctl = 0;
 
 	while(1){
 		if(rc_dsm_is_new_data()   ){
@@ -293,21 +326,69 @@ void* setpoint_control_loop(void* ptr){
 			// using channel 5 of the DSM data.
             forward_speed =  rc_dsm_ch_normalized(FOWARD_CHANNEL); // percentage -1.0 ~ 1.0
             turning_speed =  rc_dsm_ch_normalized(TURNING_CHANNEL);
+            manual_ctl = rc_dsm_ch_normalized(MANUAL_CHANNEL);
 
             // margin
             if (fabs(forward_speed)<margin) forward_speed = 0;
             if (fabs(turning_speed)<margin) turning_speed = 0;
+            if (fabs(manual_ctl)<margin) manual_ctl = 0;
             // from normalized value to speed
             forward_speed = MAX_FWD_SPEED*forward_speed;      // m/s
             turning_speed = MAX_TURN_SPEED*turning_speed;   // rad/s
             // set value to global data structure
             mb_setpoints.fwd_velocity = forward_speed;
             mb_setpoints.turn_velocity = turning_speed;
-            mb_setpoints.wheel_angle += fwd_speed2angle(forward_speed);
-            mb_setpoints.heading_angle += trun_speed2angle(turning_speed);
-		}
-	 	rc_nanosleep(1E9/RC_CTL_HZ);
-	}
+            mb_setpoints.wheel_angle += fwd_speed2dist(forward_speed);
+            mb_setpoints.heading_angle = trun_speed2angle(turning_speed)*5;
+            if(manual_ctl > 0) {
+                mb_setpoints.manual_ctl = 1;
+            } else {
+                mb_setpoints.manual_ctl = 0;
+            }
+            if (mb_setpoints.heading_angle > M_PI) {
+                mb_setpoints.heading_angle -= 2*M_PI;
+            }
+            if (mb_setpoints.heading_angle < -M_PI) {
+                mb_setpoints.heading_angle += 2*M_PI;
+            }
+
+	 	    rc_nanosleep(1E9/RC_CTL_HZ);
+
+            // turning test process
+            if (mb_setpoints.manual_ctl != last_mannul_ctl) {
+                mb_setpoints.wheel_angle = 0.0;
+                mb_setpoints.heading_angle = 0.0;
+                last_mannul_ctl = mb_setpoints.manual_ctl;
+                if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD, &D2_KP, &D2_KI, &D2_KD, &D3_KP, &D3_KI, &D3_KD) < 0) {
+                    fprintf(stderr,"controller initialization failed.\n");
+                    return NULL;
+                }
+                if(rc_filter_pid(&D1, D1_KP, D1_KI, D1_KD, 4*DT, DT)){
+                    fprintf(stderr,"ERROR in rc_filter_pid.\n");
+                    return NULL;
+                }
+                rc_filter_enable_saturation(&D1, -1.0, 1.0);
+                rc_filter_enable_soft_start(&D1, 0.5);
+
+                if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 19*DT, DT)){
+                        fprintf(stderr,"ERROR in rc_filter_pid.\n");
+                        return NULL;
+                }
+                rc_filter_enable_saturation(&D2, -0.1, 0.1);
+                rc_filter_enable_soft_start(&D2, 0.5);
+
+                if(rc_filter_pid(&D3, D3_KP, D3_KI, D3_KD, 4*DT, DT)){
+                    fprintf(stderr,"ERROR in rc_filter_pid.\n");
+                    return NULL;
+                }
+                rc_filter_enable_saturation(&D3, -0.1, 0.1);
+
+                rc_encoder_eqep_write(1, 0);
+                rc_encoder_eqep_write(2, 0);
+                fprintf(stderr,"=======================================\n");
+            }
+	    }
+    }
 	return NULL;
 }
 
@@ -337,6 +418,7 @@ void* printf_loop(void* ptr){
 			printf("    Y    |");
 			printf("    ψ    |");
             printf("   dist  |");
+            printf("  manual |");
 			printf("\n");
 		}
 		else if(new_state==PAUSED && last_state!=PAUSED){
@@ -357,8 +439,9 @@ void* printf_loop(void* ptr){
 			printf("%7.3f  |", mb_state.opti_y);
 			//printf("%7.3f  |", mb_state.opti_yaw);
             //printf("%7.3f  |", mb_state.dist_travelled);
-			printf("%7.3f  |", mb_setpoints.wheel_angle);
             printf("%7.3f  |", mb_setpoints.heading_angle);
+			printf("%7.3f  |", mb_state.dist_travelled);
+            printf("  %d  |", mb_setpoints.manual_ctl);
 			pthread_mutex_unlock(&state_mutex);
 			fflush(stdout);
 		}

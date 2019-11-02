@@ -41,7 +41,7 @@ struct mb_odometry{
 
     float x;        //x position from initialization in m
     float y;        //y position from initialization in m
-    float psi;      //orientation from initialization in rad
+    float theta;      //orientation from initialization in rad
 };
 
 #endif

@@ -19,7 +19,10 @@
 *******************************************************************************/
 
 
-int mb_controller_init(double *D1_KP, double *D1_KI, double *D1_KD, double *D2_KP, double *D2_KI, double *D2_KD){
+int mb_controller_init(
+    double *D1_KP, double *D1_KI, double *D1_KD,
+    double *D2_KP, double *D2_KI, double *D2_KD,
+    double *D3_KP, double *D3_KI, double *D3_KD) {
     char param_name[100] = {0};
     FILE *fp;
     fp = fopen(CFG_PATH, "r");
@@ -40,6 +43,15 @@ int mb_controller_init(double *D1_KP, double *D1_KI, double *D1_KD, double *D2_K
     fprintf(stdout, "%s %lf\n", param_name, *D2_KI);
     fscanf(fp, "%s %lf\n", param_name, D2_KD);
     fprintf(stdout, "%s %lf\n", param_name, *D2_KD);
+
+    fscanf(fp, "%s %lf\n", param_name, D3_KP);
+    fprintf(stdout, "%s %lf\n", param_name, *D3_KP);
+    fscanf(fp, "%s %lf\n", param_name, D3_KI);
+    fprintf(stdout, "%s %lf\n", param_name, *D3_KI);
+    fscanf(fp, "%s %lf\n", param_name, D3_KD);
+    fprintf(stdout, "%s %lf\n", param_name, *D3_KD);
+
+
     fclose(fp);
     return 0;
 }
