@@ -40,6 +40,12 @@ double D2_KD = 0;
 double D3_KP = 0;
 double D3_KI = 0;
 double D3_KD = 0;
+static int sleep_dump(int seconds) {
+    for (int s=seconds; s>0; s--) {
+        printf("sleep wait for [%d] seconds.\n", s);
+        rc_nanosleep(1E9);
+    }
+}
 /*******************************************************************************
 * int main()
 *
@@ -319,10 +325,11 @@ void* setpoint_control_loop(void* ptr){
     float manual_ctl = 0;
     float margin = 0.1; // if dsm value is smaller than the margin, setting to zero
 
+    // for tunning test process
     int last_mannul_ctl = 0;
 
 	while(1){
-		if(rc_dsm_is_new_data()   ){
+		if(rc_dsm_is_new_data()){
 			// TODO: Handle the DSM data from the Spektrum radio reciever
 			// You may should implement switching between manual and autonomous mode
 			// using channel 5 of the DSM data.
@@ -333,32 +340,36 @@ void* setpoint_control_loop(void* ptr){
             // margin
             if (fabs(forward_speed)<margin) forward_speed = 0;
             if (fabs(turning_speed)<margin) turning_speed = 0;
-            if (fabs(manual_ctl)<margin) manual_ctl = 0;
+
             // from normalized value to speed
             forward_speed = MAX_FWD_SPEED*forward_speed;      // m/s
             turning_speed = MAX_TURN_SPEED*turning_speed;   // rad/s
-            // set value to global data structure
-            mb_setpoints.fwd_velocity = forward_speed;
-            mb_setpoints.turn_velocity = turning_speed;
-            mb_setpoints.theta_ref = forward_speed;
-            mb_setpoints.wheel_angle += fwd_speed2dist(forward_speed);
-            mb_setpoints.heading_angle = trun_speed2angle(turning_speed)*5;
-            if(manual_ctl > 0) {
-                mb_setpoints.manual_ctl = 1;
-            } else {
+
+            // set manual flag
+            if(manual_ctl > 0.5) {
                 mb_setpoints.manual_ctl = 0;
-            }
-            if (mb_setpoints.heading_angle > M_PI) {
-                mb_setpoints.heading_angle -= 2*M_PI;
-            }
-            if (mb_setpoints.heading_angle < -M_PI) {
-                mb_setpoints.heading_angle += 2*M_PI;
+            } else if (manual_ctl < -0.5){
+                mb_setpoints.manual_ctl = 2;
+            } else {
+                mb_setpoints.manual_ctl = 1;
             }
 
-	 	    rc_nanosleep(1E9/RC_CTL_HZ);
-
-            // turning test process
-            if (mb_setpoints.manual_ctl != last_mannul_ctl) {
+            if (mb_setpoints.manual_ctl == 2) {
+                // manual control mode
+                // set value to global data structure
+                mb_setpoints.fwd_velocity = forward_speed;
+                mb_setpoints.turn_velocity = turning_speed;
+                mb_setpoints.theta_ref = forward_speed;
+                mb_setpoints.wheel_angle += fwd_speed2dist(forward_speed);
+                mb_setpoints.heading_angle = trun_speed2angle(turning_speed)*5;
+                if (mb_setpoints.heading_angle > M_PI) {
+                    mb_setpoints.heading_angle -= 2*M_PI;
+                }
+                if (mb_setpoints.heading_angle < -M_PI) {
+                    mb_setpoints.heading_angle += 2*M_PI;
+                }
+            } else if (mb_setpoints.manual_ctl==1){
+                // reset encoder
                 mb_setpoints.wheel_angle = 0.0;
                 mb_setpoints.heading_angle = 0.0;
                 last_mannul_ctl = mb_setpoints.manual_ctl;
@@ -389,7 +400,17 @@ void* setpoint_control_loop(void* ptr){
                 rc_encoder_eqep_write(1, 0);
                 rc_encoder_eqep_write(2, 0);
                 fprintf(stderr,"=======================================\n");
+            } else {
+                // autonomuos mode
+                mb_setpoints.wheel_angle = 0.5/WHEEL_DIAMETER/M_PI;
+                for (int s=5; s>0; s--) {
+                    printf("wait for [%d] seconds.", s);
+                    rc_nanosleep(1E9);
+                }
+                mb_setpoints.heading_angle = 1.57;
+                mb_setpoints.wheel_angle = 0.5/WHEEL_DIAMETER/M_PI;
             }
+	 	    rc_nanosleep(1E9/RC_CTL_HZ);
 	    }
     }
 	return NULL;
@@ -407,12 +428,16 @@ void* printf_loop(void* ptr){
 	rc_state_t last_state, new_state; // keep track of last state
 
     // dump odometry data into file
+    int dump_data = 0;
     char odm_data_path[] = "odometry.csv";
     FILE *fp = NULL;
-    fp = fopen(odm_data_path, "r");
-    if (fp == NULL) {
-        fprintf(stderr, "controller config file [%s] doesn't exist.\n", odm_data_path);
-        return NULL;
+
+    if (dump_data) {
+        fp = fopen(odm_data_path, "w");
+        if (fp == NULL) {
+            fprintf(stderr, "cannot open file [%s].\n", odm_data_path);
+            return NULL;
+        }
     }
 
 	while(rc_get_state()!=EXITING){
@@ -458,9 +483,9 @@ void* printf_loop(void* ptr){
 			pthread_mutex_unlock(&state_mutex);
 			fflush(stdout);
 		}
-        fprintf(fp, "%.4f, %.4f, %.4f\n", mb_odometry.x, mb_odometry.y, mb_odometry.psi);
+        if (fp){fprintf(fp, "%.4f, %.4f, %.4f %.4f\n", mb_odometry.x, mb_odometry.y, mb_odometry.psi, mb_state.yaw);}
 		rc_nanosleep(1E9/PRINTF_HZ);
 	}
-    fclose(fp);
+    if(fp){fclose(fp);}
 	return NULL;
 }
