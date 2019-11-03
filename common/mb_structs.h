@@ -11,8 +11,8 @@ struct mb_state{
     int     right_encoder;     // right encoder counts since last reading
 
     //outputs
-    float   left_cmd;  //left wheel command [-1..1]
-    float   right_cmd; //right wheel command [-1..1]
+    float   left_pwm;  //left wheel command [-1..1]
+    float   right_pwm; //right wheel command [-1..1]
 
     float opti_x;
     float opti_y;
@@ -39,7 +39,6 @@ struct mb_setpoints{
 
 typedef struct mb_odometry mb_odometry_t;
 struct mb_odometry{
-
     float x;        //x position from initialization in m
     float y;        //y position from initialization in m
     float psi;      //orientation from initialization in rad

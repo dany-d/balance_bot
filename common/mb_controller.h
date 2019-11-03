@@ -1,16 +1,14 @@
 #ifndef MB_CONTROLLER_H
 #define MB_CONTROLLER_H
 
-
+#include <rc/math/filter.h>
 #include "mb_structs.h"
 #define CFG_PATH "/home/debian/balancebot-f19/pid.cfg"
 
-int mb_controller_init(
-    double *D1_KP, double *D1_KI, double *D1_KD,
-    double *D2_KP, double *D2_KI, double *D2_KD,
-    double *D3_KP, double *D3_KI, double *D3_KD);
-int mb_controller_update(mb_state_t* mb_state);
-int mb_controller_cleanup();
+int mb_controller_init(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_filter_t *g_D3_filter);
+int mb_controller_cleanup(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_filter_t *g_D3_filter);
+int mb_controller_update(mb_state_t *mb_state, mb_setpoints_t *mb_setpoints,
+        rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_filter_t *g_D3_filter);
 
 #endif
 

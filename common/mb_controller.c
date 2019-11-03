@@ -8,6 +8,17 @@
 #include "mb_controller.h"
 #include "mb_defs.h"
 
+static float saturate(float input) {
+    if (input < -1.0) {
+        return -1.0;
+    }
+    else if (input > 1.0) {
+        return 1.0;
+    }else{
+        return input;
+    }
+}
+
 /*******************************************************************************
 * int mb_controller_init()
 *
@@ -17,42 +28,67 @@
 * return 0 on success
 *
 *******************************************************************************/
-
-
-int mb_controller_init(
-    double *D1_KP, double *D1_KI, double *D1_KD,
-    double *D2_KP, double *D2_KI, double *D2_KD,
-    double *D3_KP, double *D3_KI, double *D3_KD) {
+int mb_controller_init(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_filter_t *g_D3_filter) {
     char param_name[100] = {0};
     FILE *fp;
+
+    double D1_KP = 0;
+    double D1_KI = 0;
+    double D1_KD = 0;
+    double D2_KP = 0;
+    double D2_KI = 0;
+    double D2_KD = 0;
+    double D3_KP = 0;
+    double D3_KI = 0;
+    double D3_KD = 0;
+
     fp = fopen(CFG_PATH, "r");
     if (fp == NULL) {
         fprintf(stderr, "controller config file [%s] doesn't exist.\n", CFG_PATH);
         return -1;
     }
-    fscanf(fp, "%s %lf\n", param_name, D1_KP);
-    fprintf(stdout, "%s %lf\n", param_name, *D1_KP);
-    fscanf(fp, "%s %lf\n", param_name, D1_KI);
-    fprintf(stdout, "%s %lf\n", param_name, *D1_KI);
-    fscanf(fp, "%s %lf\n", param_name, D1_KD);
-    fprintf(stdout, "%s %lf\n", param_name, *D1_KD);
+    fscanf(fp, "%s %lf\n", param_name, &D1_KP);
+    fprintf(stdout, "%s %lf\n", param_name, D1_KP);
+    fscanf(fp, "%s %lf\n", param_name, &D1_KI);
+    fprintf(stdout, "%s %lf\n", param_name, D1_KI);
+    fscanf(fp, "%s %lf\n", param_name, &D1_KD);
+    fprintf(stdout, "%s %lf\n", param_name, D1_KD);
 
-    fscanf(fp, "%s %lf\n", param_name, D2_KP);
-    fprintf(stdout, "%s %lf\n", param_name, *D2_KP);
-    fscanf(fp, "%s %lf\n", param_name, D2_KI);
-    fprintf(stdout, "%s %lf\n", param_name, *D2_KI);
-    fscanf(fp, "%s %lf\n", param_name, D2_KD);
-    fprintf(stdout, "%s %lf\n", param_name, *D2_KD);
+    fscanf(fp, "%s %lf\n", param_name, &D2_KP);
+    fprintf(stdout, "%s %lf\n", param_name, D2_KP);
+    fscanf(fp, "%s %lf\n", param_name, &D2_KI);
+    fprintf(stdout, "%s %lf\n", param_name, D2_KI);
+    fscanf(fp, "%s %lf\n", param_name, &D2_KD);
+    fprintf(stdout, "%s %lf\n", param_name, D2_KD);
 
-    fscanf(fp, "%s %lf\n", param_name, D3_KP);
-    fprintf(stdout, "%s %lf\n", param_name, *D3_KP);
-    fscanf(fp, "%s %lf\n", param_name, D3_KI);
-    fprintf(stdout, "%s %lf\n", param_name, *D3_KI);
-    fscanf(fp, "%s %lf\n", param_name, D3_KD);
-    fprintf(stdout, "%s %lf\n", param_name, *D3_KD);
-
+    fscanf(fp, "%s %lf\n", param_name, &D3_KP);
+    fprintf(stdout, "%s %lf\n", param_name, D3_KP);
+    fscanf(fp, "%s %lf\n", param_name, &D3_KI);
+    fprintf(stdout, "%s %lf\n", param_name, D3_KI);
+    fscanf(fp, "%s %lf\n", param_name, &D3_KD);
+    fprintf(stdout, "%s %lf\n", param_name, D3_KD);
 
     fclose(fp);
+
+    if(rc_filter_pid(g_D1_filter, D1_KP, D1_KI, D1_KD, 4*DT, DT)){
+            fprintf(stderr,"ERROR in rc_filter_pid.\n");
+            return -1;
+    }
+    rc_filter_enable_saturation(g_D1_filter, -1.0, 1.0);
+    rc_filter_enable_soft_start(g_D1_filter, 0.5);
+
+    if(rc_filter_pid(g_D2_filter, D2_KP, D2_KI, D2_KD, 4*DT, DT)){
+            fprintf(stderr,"ERROR in rc_filter_pid.\n");
+            return -1;
+    }
+    rc_filter_enable_saturation(g_D2_filter, -0.2, 0.2);
+    rc_filter_enable_soft_start(g_D2_filter, 0.5);
+
+    if(rc_filter_pid(g_D3_filter, D3_KP, D3_KI, D3_KD, 4*DT, DT)){
+        fprintf(stderr,"ERROR in rc_filter_pid.\n");
+        return -1;
+    }
+    rc_filter_enable_saturation(g_D3_filter, -0.5, 0.5);
     return 0;
 }
 
@@ -68,9 +104,20 @@ int mb_controller_init(
 * return 0 on success
 *
 *******************************************************************************/
+int mb_controller_update(mb_state_t *mb_state, mb_setpoints_t *mb_setpoints,
+        rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_filter_t *g_D3_filter) {
 
-int mb_controller_update(mb_state_t* mb_state){
-    /*TODO: Write your controller here*/
+    double theta_steady_state_error = 0.038;
+    double theta_ref = 0;
+    double pwm_duty = 0;
+    double turning_pwm_duty = 0;
+
+    theta_ref = rc_filter_march(g_D2_filter, (mb_setpoints->wheel_angle-mb_state->phi));
+    pwm_duty = rc_filter_march(g_D1_filter, (theta_ref+theta_steady_state_error-mb_state->theta));
+    turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw);
+    mb_state->left_pwm = saturate(-turning_pwm_duty+pwm_duty);
+    mb_state->right_pwm = saturate(turning_pwm_duty+pwm_duty);
+
     return 0;
 }
 
@@ -83,7 +130,9 @@ int mb_controller_update(mb_state_t* mb_state){
 * return 0 on success
 *
 *******************************************************************************/
-
-int mb_controller_cleanup(){
+int mb_controller_cleanup(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_filter_t *g_D3_filter) {
+    rc_filter_free(g_D1_filter);
+    rc_filter_free(g_D2_filter);
+    rc_filter_free(g_D3_filter);
     return 0;
 }
