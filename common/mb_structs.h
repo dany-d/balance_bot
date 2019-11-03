@@ -24,6 +24,7 @@ struct mb_state{
     int  last_left_encoder;
     int  last_right_encoder;
     float dist_travelled;
+    float velo_est;
 };
 
 typedef struct mb_setpoints mb_setpoints_t;
