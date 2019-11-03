@@ -22,9 +22,7 @@
 int mb_controller_init(
     double *D1_KP, double *D1_KI, double *D1_KD,
     double *D2_KP, double *D2_KI, double *D2_KD,
-    double *D3_KP, double *D3_KI, double *D3_KD,
-    double *deg1, double *deg2, double *t1, double *t2, double *total, double *sse)
-     {
+    double *D3_KP, double *D3_KI, double *D3_KD) {
     char param_name[100] = {0};
     FILE *fp;
     fp = fopen(CFG_PATH, "r");
@@ -52,21 +50,6 @@ int mb_controller_init(
     fprintf(stdout, "%s %lf\n", param_name, *D3_KI);
     fscanf(fp, "%s %lf\n", param_name, D3_KD);
     fprintf(stdout, "%s %lf\n", param_name, *D3_KD);
-
-    fscanf(fp, "%s %lf\n", param_name, deg1);
-    fprintf(stdout, "%s %lf\n", param_name, *deg1);
-    fscanf(fp, "%s %lf\n", param_name, deg2);
-    fprintf(stdout, "%s %lf\n", param_name, *deg2);
-    fscanf(fp, "%s %lf\n", param_name, t1);
-    fprintf(stdout, "%s %lf\n", param_name, *t1);
-    fscanf(fp, "%s %lf\n", param_name, t2);
-    fprintf(stdout, "%s %lf\n", param_name, *t2);
-    fscanf(fp, "%s %lf\n", param_name, total);
-    fprintf(stdout, "%s %lf\n", param_name, *total);
-
-    fscanf(fp, "%s %lf\n", param_name, sse);
-    fprintf(stdout, "%s %lf\n", param_name, *sse);
-
 
 
     fclose(fp);

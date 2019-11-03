@@ -40,16 +40,6 @@ double D2_KD = 0;
 double D3_KP = 0;
 double D3_KI = 0;
 double D3_KD = 0;
-double deg1 = 0;
-double deg2 = 0;
-double t1= 0;
-double t2 = 0;
-double total = 0;
-double t_start =0.0;
-double mi = 0.0;
-double phi_reach = 0.0;
-int flag = 1;
-double sse = 0.0;
 /*******************************************************************************
 * int main()
 *
@@ -132,7 +122,7 @@ int main(){
 	}
 
 	printf("initializing controller...\n");
-	if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD, &D2_KP, &D2_KI, &D2_KD, &D3_KP, &D3_KI, &D3_KD, &deg1, &deg2, &t1, &t2, &total, &sse) < 0) {
+	if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD, &D2_KP, &D2_KI, &D2_KD, &D3_KP, &D3_KI, &D3_KD) < 0) {
         fprintf(stderr,"controller initialization failed.\n");
         return -1;
     }
@@ -159,14 +149,14 @@ int main(){
 	printf("initializing odometry...\n");
 	mb_odometry_init(0.0,0.0,0.0);
 
-    if(rc_filter_pid(&D1, D1_KP, D1_KI, D1_KD, 2.7*DT, DT)){
+    if(rc_filter_pid(&D1, D1_KP, D1_KI, D1_KD, 4*DT, DT)){
             fprintf(stderr,"ERROR in rc_filter_pid.\n");
             return -1;
     }
     rc_filter_enable_saturation(&D1, -1.0, 1.0);
     rc_filter_enable_soft_start(&D1, 0.5);
 
-    if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 20*DT, DT)){
+    if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 4*DT, DT)){
             fprintf(stderr,"ERROR in rc_filter_pid.\n");
             return -1;
     }
@@ -179,7 +169,6 @@ int main(){
     }
     rc_filter_enable_saturation(&D3, -0.5, 0.5);
 
-    t_start = (float) rc_nanos_since_boot()/1E9;
 	//attach controller function to IMU interrupt
 	printf("attaching imu interupt...\n");
 	rc_mpu_set_dmp_callback(&balancebot_controller);
@@ -233,39 +222,6 @@ static float saturate(float input) {
     }
 }
 
-
-double sendcmds(double deg1, double deg2, double t1, double t2, double total){
-    double theta;
-    double t_now = rc_nanos_since_boot()/1E9 - t_start;
-    if(t_now < mi+t1){
-        theta = deg1;
-        // printf("1\n");
-    }
-    else if(mi+t1 <= t_now && t_now < mi+(t1+t2)){
-        theta = deg2;
-        // printf("2\n");
-    }
-    else if(t_now < (total -1) && t_now>= mi+(t1+t2)){
-        mi += (t1+t2);
-        theta = 0.0;
-        printf("3\n");
-    }
-    else if(t_now > total -1 && t_now<total){
-        theta = deg2;
-        printf("Braking...bitches!\n");
-    }
-    else{
-        if(flag==1){
-            phi_reach = mb_state.phi;
-            flag = 0;
-        }
-        theta = rc_filter_march(&D2, (phi_reach-mb_state.phi));
-        printf("4\n");
-    }
-    return theta;
-}
-
-
 void balancebot_controller(){
 
 	//lock state mutex
@@ -274,8 +230,9 @@ void balancebot_controller(){
 	// Read IMU
 	mb_state.theta = mpu_data.dmp_TaitBryan[TB_PITCH_X];
     mb_state.yaw = mpu_data.dmp_TaitBryan[TB_YAW_Z];
-    //double gyrox = mpu_data.gyro[0];
-    // Read encoders
+    double gyrox = mpu_data.gyro[0];
+
+	// Read encoders
 	mb_state.left_encoder = rc_encoder_eqep_read(1);
 	mb_state.right_encoder = rc_encoder_eqep_read(2);
 
@@ -296,11 +253,10 @@ void balancebot_controller(){
     //fprintf(stderr, "%f\n", wheel_angle);
     // implement outerloop here
     if(rc_get_state()!=EXITING){
-        //double theta_ref = sendcmds(deg1,deg2,t1,t2,total);
         double phi_ref = mb_setpoints.wheel_angle;
-        phi_ref = 11.0*2/WHEEL_DIAMETER;
         double theta_ref = rc_filter_march(&D2, (phi_ref-mb_state.phi));
-        double pwm_duty = rc_filter_march(&D1, (theta_ref+sse-mb_state.theta));
+        // double theta_ref = mb_setpoints.theta_ref;
+        double pwm_duty = rc_filter_march(&D1, (theta_ref+0.038-mb_state.theta));
         //double turning_pwm_duty = rc_filter_march(&D3, (mb_setpoints.heading_angle-mb_state.yaw));
         double turning_pwm_duty = mb_setpoints.heading_angle;
         //mb_motor_set_all(pwm_duty);
@@ -406,18 +362,18 @@ void* setpoint_control_loop(void* ptr){
                 mb_setpoints.wheel_angle = 0.0;
                 mb_setpoints.heading_angle = 0.0;
                 last_mannul_ctl = mb_setpoints.manual_ctl;
-                if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD, &D2_KP, &D2_KI, &D2_KD, &D3_KP, &D3_KI, &D3_KD, &deg1, &deg2, &t1, &t2, &total, &sse) < 0) {
+                if (mb_controller_init(&D1_KP, &D1_KI, &D1_KD, &D2_KP, &D2_KI, &D2_KD, &D3_KP, &D3_KI, &D3_KD) < 0) {
                     fprintf(stderr,"controller initialization failed.\n");
                     return NULL;
                 }
-                if(rc_filter_pid(&D1, D1_KP, D1_KI, D1_KD, 2.7*DT, DT)){
+                if(rc_filter_pid(&D1, D1_KP, D1_KI, D1_KD, 4*DT, DT)){
                     fprintf(stderr,"ERROR in rc_filter_pid.\n");
                     return NULL;
                 }
                 rc_filter_enable_saturation(&D1, -1.0, 1.0);
                 rc_filter_enable_soft_start(&D1, 0.5);
 
-                if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 20*DT, DT)){
+                if(rc_filter_pid(&D2, D2_KP, D2_KI, D2_KD, 4*DT, DT)){
                         fprintf(stderr,"ERROR in rc_filter_pid.\n");
                         return NULL;
                 }
@@ -432,12 +388,6 @@ void* setpoint_control_loop(void* ptr){
 
                 rc_encoder_eqep_write(1, 0);
                 rc_encoder_eqep_write(2, 0);
-                t_start = (float) rc_nanos_since_boot()/1E9;
-                mb_state.last_left_encoder = 0;
-                mb_state.last_right_encoder = 0;
-                mi = 0.0;
-                flag = 1;
-                phi_reach = 0.0;
                 fprintf(stderr,"=======================================\n");
             }
 	    }
@@ -459,7 +409,7 @@ void* printf_loop(void* ptr){
     // dump odometry data into file
     char odm_data_path[] = "odometry.csv";
     FILE *fp = NULL;
-    fp = fopen(odm_data_path, "w");
+    fp = fopen(odm_data_path, "r");
     if (fp == NULL) {
         fprintf(stderr, "controller config file [%s] doesn't exist.\n", odm_data_path);
         return NULL;
@@ -475,10 +425,10 @@ void* printf_loop(void* ptr){
 			printf("    θ    |");
 			printf("    φ    |");
 			printf("  yaw    |");
-			// printf("  L Enc  |");
-			// printf("  R Enc  |");
-			// printf("    X    |");
-			// printf("    Y    |");
+			printf("  L Enc  |");
+			printf("  R Enc  |");
+			printf("    X    |");
+			printf("    Y    |");
 			printf("    ψ    |");
             printf("   dist  |");
             printf("  manual |");
@@ -496,10 +446,10 @@ void* printf_loop(void* ptr){
 			printf("%7.3f  |", mb_state.theta);
 			printf("%7.3f  |", mb_state.phi);
 			printf("%7.3f  |", mb_state.yaw);
-			// printf("%7d  |", mb_state.left_encoder);
-			// printf("%7d  |", mb_state.right_encoder);
-			// printf("%7.3f  |", mb_state.opti_x);
-			// printf("%7.3f  |", mb_state.opti_y);
+			printf("%7d  |", mb_state.left_encoder);
+			printf("%7d  |", mb_state.right_encoder);
+			printf("%7.3f  |", mb_state.opti_x);
+			printf("%7.3f  |", mb_state.opti_y);
 			//printf("%7.3f  |", mb_state.opti_yaw);
             //printf("%7.3f  |", mb_state.dist_travelled);
             printf("%7.3f  |", mb_setpoints.heading_angle);
@@ -508,7 +458,7 @@ void* printf_loop(void* ptr){
 			pthread_mutex_unlock(&state_mutex);
 			fflush(stdout);
 		}
-        // fprintf(fp, "%.4f, %.4f, %.4f\n", mb_odometry.x, mb_odometry.y, mb_odometry.psi);
+        fprintf(fp, "%.4f, %.4f, %.4f\n", mb_odometry.x, mb_odometry.y, mb_odometry.psi);
 		rc_nanosleep(1E9/PRINTF_HZ);
 	}
     fclose(fp);

@@ -8,8 +8,7 @@
 int mb_controller_init(
     double *D1_KP, double *D1_KI, double *D1_KD,
     double *D2_KP, double *D2_KI, double *D2_KD,
-    double *D3_KP, double *D3_KI, double *D3_KD,
-    double *deg1, double *deg2, double *t1, double *t2, double *total,double *sse);
+    double *D3_KP, double *D3_KI, double *D3_KD);
 int mb_controller_update(mb_state_t* mb_state);
 int mb_controller_cleanup();
 
