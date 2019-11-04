@@ -263,11 +263,11 @@ void* setpoint_control_loop(void* ptr){
     float margin = 0.1; // if dsm value is smaller than the margin, setting to zero
 
     // autonomous mode variable
-    int race_task = 1;
-    int wp_i = 1;
+    int race_task = 2; // 1 drag race 2 square
+    // int wp_i = 1;
     int finish = 0;
     //double wp_arry[] = {0.0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11.0};
-    double wp_arry2[] = {0.0, 0.2, 0.4, 0.6, 0.8, 0.9, 1};
+    // double wp_arry2[] = {0.0, 0.2, 0.4, 0.6, 0.8, 0.9, 1};
     int turn = 0;
     if(rc_dsm_init()==-1){
 		fprintf(stderr,"failed to start initialize DSM\n");
@@ -311,17 +311,17 @@ void* setpoint_control_loop(void* ptr){
                 mb_setpoints.theta_ref = forward_speed * 5 / 180 * M_PI;
                 mb_setpoints.wheel_angle += fwd_speed2dist(3*forward_speed);
                 mb_setpoints.heading_angle = trun_speed2angle(turning_speed)*5;
-                if (mb_setpoints.heading_angle > M_PI) {
-                    mb_setpoints.heading_angle -= 2*M_PI;
-                }
-                if (mb_setpoints.heading_angle < -M_PI) {
-                    mb_setpoints.heading_angle += 2*M_PI;
-                }
+                // if (mb_setpoints.heading_angle > M_PI) {
+                //     mb_setpoints.heading_angle -= 2*M_PI;
+                // }
+                // if (mb_setpoints.heading_angle < -M_PI) {
+                //     mb_setpoints.heading_angle += 2*M_PI;
+                // }
             } else if (mb_setpoints.manual_ctl==1){
                 // reset encoder
                 mb_setpoints.wheel_angle = 0.0;
                 mb_setpoints.heading_angle = mb_state.yaw;
-                wp_i = 1;
+                // wp_i = 1;
                 turn = 0;
                 finish = 0;
                 if (mb_controller_init(&g_D1_filter, &g_D2_filter, &g_D3_filter, &sse) < 0) {
@@ -348,9 +348,9 @@ void* setpoint_control_loop(void* ptr){
                     //     mb_setpoints.wheel_angle = wp_arry[wp_i] * 2/ WHEEL_DIAMETER;
                     // }else{
                     //     mb_setpoints.wheel_angle = wp_arry[wp_i] * 2/ WHEEL_DIAMETER;
-                    // }   
-                    
-                    // For the final waypoint  
+                    // }
+
+                    // For the final waypoint
                     // if (wp_i == sizeof(wp_arry)-1){
                     //     continue;
                     // }
@@ -377,7 +377,7 @@ void* setpoint_control_loop(void* ptr){
                     } else { // start
                         mb_setpoints.wheel_angle += fwd_speed2dist(3);
                     }
-                    // mb_setpoints.wheel_angle = wp_arry[wp_i] * 2/ WHEEL_DIAMETER; 
+                    // mb_setpoints.wheel_angle = wp_arry[wp_i] * 2/ WHEEL_DIAMETER;
                     // if (mb_state.phi>= (wp_arry[wp_i-1] + 0.9 * (wp_arry[wp_i]-wp_arry[wp_i-1])) * 2/ WHEEL_DIAMETER) {
                     //     wp_i += 1;
                     //     mb_setpoints.wheel_angle = wp_arry[wp_i] * 2/ WHEEL_DIAMETER;
@@ -385,26 +385,42 @@ void* setpoint_control_loop(void* ptr){
                 }
 
                 if (race_task == 2){
-                    if (wp_i == sizeof(wp_arry2)-1 && turn == 0){
-                        turn = 1;
-                        continue;
-                    }
-                    mb_setpoints.wheel_angle = wp_arry2[wp_i] * 2/ WHEEL_DIAMETER; 
-                    if (mb_state.phi>= (wp_arry2[wp_i-1] + 0.7 * (wp_arry2[wp_i]-wp_arry2[wp_i-1])) * 2/ WHEEL_DIAMETER) {
-                        wp_i += 1;
-                        if (turn == 1){
-                            //turn left
-                            mb_setpoints.heading_angle += M_PI/2;
-                            rc_nanosleep(1E9);
-                            turn = 0;
-                            wp_i = 1;
-                            for (uint i; i < sizeof(wp_arry2); i++){
-                                wp_arry2[i] = wp_arry2[i] + 1;
+                    // if (wp_i == sizeof(wp_arry2)-1 && turn == 0){
+                    //     turn = 1;
+                    //     continue;
+                    // }
+                    // mb_setpoints.wheel_angle = wp_arry2[wp_i] * 2/ WHEEL_DIAMETER;
+                    // if (mb_state.phi>= (wp_arry2[wp_i-1] + 0.7 * (wp_arry2[wp_i]-wp_arry2[wp_i-1])) * 2/ WHEEL_DIAMETER) {
+                    //     wp_i += 1;
+                    //     if (turn == 1){
+                    //         //turn left
+                    //         mb_setpoints.heading_angle += M_PI/2;
+                    //         rc_nanosleep(1E9);
+                    //         turn = 0;
+                    //         wp_i = 1;
+                    //         for (uint i; i < sizeof(wp_arry2); i++){
+                    //             wp_arry2[i] = wp_arry2[i] + 1;
+                    //         }
+                    //     }
+                    //     mb_setpoints.wheel_angle = wp_arry2[wp_i] * 2/ WHEEL_DIAMETER;
+                    // }
+                    if (turn == 0 ){
+                        if (mb_state.phi > 0 * 2/ WHEEL_DIAMETER){ // final
+                            mb_setpoints.wheel_angle += fwd_speed2dist(0.5);
+                            if (mb_state.phi > 0.99 * 2/ WHEEL_DIAMETER){
+                                mb_setpoints.wheel_angle = 1 * 2/ WHEEL_DIAMETER;
+                                turn = 1;
                             }
                         }
-                        mb_setpoints.wheel_angle = wp_arry2[wp_i] * 2/ WHEEL_DIAMETER;
                     }
-
+                    if (turn == 1){
+                        mb_setpoints.heading_angle = M_PI/2;
+                        rc_nanosleep(1E9);
+                        turn = 0;
+                        rc_encoder_eqep_write(1, 0);
+                        rc_encoder_eqep_write(2, 0);
+                        mb_setpoints.wheel_angle = 0;
+                    }
                 }
             }
 	 	    rc_nanosleep(1E9/RC_CTL_HZ);
