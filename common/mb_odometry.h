@@ -12,6 +12,5 @@
 void mb_odometry_init();
 void mb_odometry_update();
 float mb_clamp_radians(float angle);
-//int mb_in_range(float num, float min, float max);
 
 #endif

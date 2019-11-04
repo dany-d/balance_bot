@@ -170,8 +170,8 @@ int main(){
 	rc_mpu_power_off();
 	mb_motor_cleanup();
 	rc_led_cleanup();
-	rc_encoder_eqep_cleanup();
     rc_dsm_cleanup();
+	rc_encoder_eqep_cleanup();
     rc_nanosleep(1E9);
 	rc_remove_pid_file(); // remove pid file LAST
 	return 0;
@@ -215,8 +215,8 @@ void balancebot_controller(){
             &g_D1_filter, &g_D2_filter, &g_D3_filter);
 
     if(rc_get_state()!=EXITING){
-        //mb_motor_set(LEFT_MOTOR, mb_state.left_pwm);
-        //mb_motor_set(RIGHT_MOTOR, mb_state.right_pwm);
+        mb_motor_set(LEFT_MOTOR, mb_state.left_pwm);
+        mb_motor_set(RIGHT_MOTOR, mb_state.right_pwm);
     }
 
 	XBEE_getData();
@@ -261,12 +261,10 @@ void* setpoint_control_loop(void* ptr){
     float manual_ctl = 0;
     float margin = 0.1; // if dsm value is smaller than the margin, setting to zero
 
-    if(rc_dsm_init()==-1){
-		fprintf(stderr,"failed to start initialize DSM\n");
-		return NULL;
-	}
-
 	while(1){
+        if (rc_get_state() == EXITING) {
+            break;
+        }
 		if(rc_dsm_is_new_data()){
 			// TODO: Handle the DSM data from the Spektrum radio reciever
 			// You may should implement switching between manual and autonomous mode
@@ -299,13 +297,7 @@ void* setpoint_control_loop(void* ptr){
                 mb_setpoints.turn_velocity = turning_speed;
                 mb_setpoints.theta_ref = forward_speed;
                 mb_setpoints.wheel_angle += fwd_speed2dist(forward_speed);
-                mb_setpoints.heading_angle += trun_speed2angle(turning_speed)*5;
-                if (mb_setpoints.heading_angle > M_PI) {
-                    mb_setpoints.heading_angle -= 2*M_PI;
-                }
-                if (mb_setpoints.heading_angle < -M_PI) {
-                    mb_setpoints.heading_angle += 2*M_PI;
-                }
+                mb_setpoints.heading_angle += trun_speed2angle(turning_speed);
             } else if (mb_setpoints.manual_ctl==1){
                 // reset encoder
                 mb_setpoints.wheel_angle = 0.0;
@@ -326,7 +318,6 @@ void* setpoint_control_loop(void* ptr){
 	 	    rc_nanosleep(1E9/RC_CTL_HZ);
 	    }
     }
-    rc_dsm_cleanup();
 	return NULL;
 }
 
@@ -378,7 +369,7 @@ void* printf_loop(void* ptr){
 		}
 		last_state = new_state;
 
-		if(new_state == RUNNING){
+		if(new_state == RUNNING) {
 			printf("\r");
 			//Add Print stattements here, do not follow with /n
 			pthread_mutex_lock(&state_mutex);
