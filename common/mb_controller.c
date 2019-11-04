@@ -48,28 +48,28 @@ int mb_controller_init(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_fi
         return -1;
     }
     fscanf(fp, "%s %lf\n", param_name, &D1_KP);
-    fprintf(stdout, "%s %lf\n", param_name, D1_KP);
+    //fprintf(stdout, "%s %lf\n", param_name, D1_KP);
     fscanf(fp, "%s %lf\n", param_name, &D1_KI);
-    fprintf(stdout, "%s %lf\n", param_name, D1_KI);
+    //fprintf(stdout, "%s %lf\n", param_name, D1_KI);
     fscanf(fp, "%s %lf\n", param_name, &D1_KD);
-    fprintf(stdout, "%s %lf\n", param_name, D1_KD);
+    //fprintf(stdout, "%s %lf\n", param_name, D1_KD);
 
     fscanf(fp, "%s %lf\n", param_name, &D2_KP);
-    fprintf(stdout, "%s %lf\n", param_name, D2_KP);
+    // fprintf(stdout, "%s %lf\n", param_name, D2_KP);
     fscanf(fp, "%s %lf\n", param_name, &D2_KI);
-    fprintf(stdout, "%s %lf\n", param_name, D2_KI);
+    // fprintf(stdout, "%s %lf\n", param_name, D2_KI);
     fscanf(fp, "%s %lf\n", param_name, &D2_KD);
-    fprintf(stdout, "%s %lf\n", param_name, D2_KD);
+    // fprintf(stdout, "%s %lf\n", param_name, D2_KD);
 
     fscanf(fp, "%s %lf\n", param_name, &D3_KP);
-    fprintf(stdout, "%s %lf\n", param_name, D3_KP);
+    // fprintf(stdout, "%s %lf\n", param_name, D3_KP);
     fscanf(fp, "%s %lf\n", param_name, &D3_KI);
-    fprintf(stdout, "%s %lf\n", param_name, D3_KI);
+    // fprintf(stdout, "%s %lf\n", param_name, D3_KI);
     fscanf(fp, "%s %lf\n", param_name, &D3_KD);
-    fprintf(stdout, "%s %lf\n", param_name, D3_KD);
+    // fprintf(stdout, "%s %lf\n", param_name, D3_KD);
 
     fscanf(fp, "%s %lf\n", param_name, sse);
-    fprintf(stdout, "%s %lf\n", param_name, *sse);
+    // fprintf(stdout, "%s %lf\n", param_name, *sse);
 
     fclose(fp);
 
@@ -84,7 +84,7 @@ int mb_controller_init(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_fi
             fprintf(stderr,"ERROR in rc_filter_pid.\n");
             return -1;
     }
-    rc_filter_enable_saturation(g_D2_filter, -0.2, 0.2);
+    rc_filter_enable_saturation(g_D2_filter, -0.1, 0.1);
     rc_filter_enable_soft_start(g_D2_filter, 0.5);
 
     if(rc_filter_pid(g_D3_filter, D3_KP, D3_KI, D3_KD, 4*DT, DT)){
@@ -114,12 +114,16 @@ int mb_controller_update(mb_state_t *mb_state, mb_setpoints_t *mb_setpoints,
     double pwm_duty = 0;
     double turning_pwm_duty = 0;
 
-    theta_ref = rc_filter_march(g_D2_filter, (mb_setpoints->wheel_angle-mb_state->phi));
-    pwm_duty = rc_filter_march(g_D1_filter, (theta_ref+sse-mb_state->theta));
     if (mb_setpoints->manual_ctl == 2){
+        theta_ref = mb_setpoints->theta_ref;
+        // theta_ref = rc_filter_march(g_D2_filter, (mb_setpoints->wheel_angle-mb_state->phi));
+        pwm_duty = rc_filter_march(g_D1_filter, (theta_ref+sse-mb_state->theta));
         turning_pwm_duty = mb_setpoints->heading_angle;
+        //turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw);
     }
     if (mb_setpoints->manual_ctl == 0){
+        theta_ref = rc_filter_march(g_D2_filter, (mb_setpoints->wheel_angle-mb_state->phi));
+        pwm_duty = rc_filter_march(g_D1_filter, (theta_ref+sse-mb_state->theta));
         turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw);
     }
     mb_state->left_pwm = saturate(-turning_pwm_duty+pwm_duty);

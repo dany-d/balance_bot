@@ -32,8 +32,6 @@ rc_filter_t g_D2_filter = RC_FILTER_INITIALIZER;
 rc_filter_t g_D3_filter = RC_FILTER_INITIALIZER;
 double sse = 0.0;
 int race = 1;
-int wp_i = 1;
-int wp_res = 5;
 // utility function
 static int sleep_dump(int seconds) {
     for (int s=seconds; s>0; s--) {
@@ -264,12 +262,22 @@ void* setpoint_control_loop(void* ptr){
     float manual_ctl = 0;
     float margin = 0.1; // if dsm value is smaller than the margin, setting to zero
 
+    // autonomous mode variable
+    int race_task = 1;
+    int wp_i = 1;
+    int finish = 0;
+    //double wp_arry[] = {0.0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11.0};
+    double wp_arry2[] = {0.0, 0.2, 0.4, 0.6, 0.8, 0.9, 1};
+    int turn = 0;
     if(rc_dsm_init()==-1){
 		fprintf(stderr,"failed to start initialize DSM\n");
 		return NULL;
 	}
 
 	while(1){
+        if (rc_get_state() == EXITING) {
+            break;
+        }
 		if(rc_dsm_is_new_data()){
 			// TODO: Handle the DSM data from the Spektrum radio reciever
 			// You may should implement switching between manual and autonomous mode
@@ -300,8 +308,8 @@ void* setpoint_control_loop(void* ptr){
                 // set value to global data structure
                 mb_setpoints.fwd_velocity = forward_speed;
                 mb_setpoints.turn_velocity = turning_speed;
-                mb_setpoints.theta_ref = forward_speed;
-                mb_setpoints.wheel_angle += fwd_speed2dist(forward_speed);
+                mb_setpoints.theta_ref = forward_speed * 5 / 180 * M_PI;
+                mb_setpoints.wheel_angle += fwd_speed2dist(3*forward_speed);
                 mb_setpoints.heading_angle = trun_speed2angle(turning_speed)*5;
                 if (mb_setpoints.heading_angle > M_PI) {
                     mb_setpoints.heading_angle -= 2*M_PI;
@@ -312,30 +320,91 @@ void* setpoint_control_loop(void* ptr){
             } else if (mb_setpoints.manual_ctl==1){
                 // reset encoder
                 mb_setpoints.wheel_angle = 0.0;
-                mb_setpoints.heading_angle = 0.0;
+                mb_setpoints.heading_angle = mb_state.yaw;
+                wp_i = 1;
+                turn = 0;
+                finish = 0;
                 if (mb_controller_init(&g_D1_filter, &g_D2_filter, &g_D3_filter, &sse) < 0) {
                     fprintf(stderr,"controller initialization failed.\n");
                     return NULL;
                 }
                 rc_encoder_eqep_write(1, 0);
                 rc_encoder_eqep_write(2, 0);
-                fprintf(stderr,"=======================================\n");
+                // fprintf(stderr,"=======================================\n");
             } else {
                 // autonomuos mode
                 //mb_setpoints.wheel_angle = 0.5/WHEEL_DIAMETER/M_PI;
                 //mb_setpoints.heading_angle = 1.57;
                 //mb_setpoints.wheel_angle = 0.5/WHEEL_DIAMETER/M_PI;
+
                 ////// 11 meter racing
-                if (race==1){
-                    if (mb_odometry.x >= 0.8 * 11 * 2/ WHEEL_DIAMETER / wp_res * wp_i){
-                        wp_i += 1;
-                        if (wp_i > wp_res) {
-                            wp_i = wp_res;
+                if (race_task == 1 && finish == 0){
+                    //printf("%7.3f\n", wp_arry[wp_i]);
+                    // if (mb_setpoints.wheel_angle>= 0.8 * wp_arry[wp_i] * 2/ WHEEL_DIAMETER){
+                    //     wp_i += 1;
+                    //     if (wp_i > sizeof(wp_arry)) {
+                    //         wp_i = sizeof(wp_arry);
+                    //     }
+                    //     mb_setpoints.wheel_angle = wp_arry[wp_i] * 2/ WHEEL_DIAMETER;
+                    // }else{
+                    //     mb_setpoints.wheel_angle = wp_arry[wp_i] * 2/ WHEEL_DIAMETER;
+                    // }   
+                    
+                    // For the final waypoint  
+                    // if (wp_i == sizeof(wp_arry)-1){
+                    //     continue;
+                    // }
+
+                    if (mb_state.phi > 11.1 * 2/ WHEEL_DIAMETER){ // final
+                        mb_setpoints.wheel_angle += fwd_speed2dist(0.1);
+                        if (mb_state.phi > 11.59 * 2/ WHEEL_DIAMETER){
+                            mb_setpoints.wheel_angle =11.6 * 2/ WHEEL_DIAMETER;
+                            finish = 1;
                         }
-                        mb_setpoints.wheel_angle =  11 * 2/ WHEEL_DIAMETER / wp_res * wp_i;
-                    }else{
-                        mb_setpoints.wheel_angle =  11 * 2/ WHEEL_DIAMETER / wp_res * wp_i;
+                    } else if (mb_state.phi > 1 * 2/ WHEEL_DIAMETER
+                        && mb_state.phi <= 2 * 2/ WHEEL_DIAMETER){ // mid start
+                        mb_setpoints.wheel_angle += fwd_speed2dist(6.2);
+                    } else if  (mb_state.phi > 2 * 2/ WHEEL_DIAMETER
+                        && mb_state.phi <= 10 * 2/ WHEEL_DIAMETER){
+                        mb_setpoints.wheel_angle += fwd_speed2dist(6.7);
+                    } else if  (mb_state.phi > 10 * 2/ WHEEL_DIAMETER
+                        && mb_state.phi <= 11 * 2/ WHEEL_DIAMETER){ // mid end
+                        mb_setpoints.wheel_angle += fwd_speed2dist(4);
+                    } else if  (mb_state.phi > 11 * 2/ WHEEL_DIAMETER
+                        && mb_state.phi <= 11.2 * 2/ WHEEL_DIAMETER){ // mid end
+                        mb_setpoints.wheel_angle += fwd_speed2dist(0.2);
+
+                    } else { // start
+                        mb_setpoints.wheel_angle += fwd_speed2dist(3);
                     }
+                    // mb_setpoints.wheel_angle = wp_arry[wp_i] * 2/ WHEEL_DIAMETER; 
+                    // if (mb_state.phi>= (wp_arry[wp_i-1] + 0.9 * (wp_arry[wp_i]-wp_arry[wp_i-1])) * 2/ WHEEL_DIAMETER) {
+                    //     wp_i += 1;
+                    //     mb_setpoints.wheel_angle = wp_arry[wp_i] * 2/ WHEEL_DIAMETER;
+                    // }
+                }
+
+                if (race_task == 2){
+                    if (wp_i == sizeof(wp_arry2)-1 && turn == 0){
+                        turn = 1;
+                        continue;
+                    }
+                    mb_setpoints.wheel_angle = wp_arry2[wp_i] * 2/ WHEEL_DIAMETER; 
+                    if (mb_state.phi>= (wp_arry2[wp_i-1] + 0.7 * (wp_arry2[wp_i]-wp_arry2[wp_i-1])) * 2/ WHEEL_DIAMETER) {
+                        wp_i += 1;
+                        if (turn == 1){
+                            //turn left
+                            mb_setpoints.heading_angle += M_PI/2;
+                            rc_nanosleep(1E9);
+                            turn = 0;
+                            wp_i = 1;
+                            for (uint i; i < sizeof(wp_arry2); i++){
+                                wp_arry2[i] = wp_arry2[i] + 1;
+                            }
+                        }
+                        mb_setpoints.wheel_angle = wp_arry2[wp_i] * 2/ WHEEL_DIAMETER;
+                    }
+
                 }
             }
 	 	    rc_nanosleep(1E9/RC_CTL_HZ);
