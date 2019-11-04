@@ -171,8 +171,8 @@ int main(){
 	rc_mpu_power_off();
 	mb_motor_cleanup();
 	rc_led_cleanup();
-	rc_encoder_eqep_cleanup();
     rc_dsm_cleanup();
+	rc_encoder_eqep_cleanup();
     rc_nanosleep(1E9);
 	rc_remove_pid_file(); // remove pid file LAST
 	return 0;
@@ -410,7 +410,6 @@ void* setpoint_control_loop(void* ptr){
 	 	    rc_nanosleep(1E9/RC_CTL_HZ);
 	    }
     }
-    rc_dsm_cleanup();
 	return NULL;
 }
 
@@ -462,7 +461,7 @@ void* printf_loop(void* ptr){
 		}
 		last_state = new_state;
 
-		if(new_state == RUNNING){
+		if(new_state == RUNNING) {
 			printf("\r");
 			//Add Print stattements here, do not follow with /n
 			pthread_mutex_lock(&state_mutex);

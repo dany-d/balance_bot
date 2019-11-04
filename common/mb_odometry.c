@@ -14,10 +14,11 @@ void mb_odometry_init(){
 }
 
 void mb_odometry_update(){
-    /* TODO */
-    // change  the sign of left encoder
+    /* TODO */ // change  the sign of left encoder
     int diff_left_encoder = -(mb_state.left_encoder-mb_state.last_left_encoder);
     int diff_right_encoder = (mb_state.right_encoder-mb_state.last_right_encoder);
+
+    //double diff_yaw = (mb_state.yaw - mb_state.last_yaw);
     double diff_left_wheel_dist = WHEEL_DIAMETER * M_PI * diff_left_encoder/ENCODER_RES/GEAR_RATIO;
     double diff_right_wheel_dist = WHEEL_DIAMETER * M_PI * diff_right_encoder/ENCODER_RES/GEAR_RATIO;
     double diff_psi = (diff_right_wheel_dist - diff_left_wheel_dist)/WHEEL_BASE;
@@ -26,10 +27,12 @@ void mb_odometry_update(){
     double diff_y = diff_d*sin(mb_odometry.psi+diff_psi/2.0);
     mb_odometry.x = mb_odometry.x + diff_x;
     mb_odometry.y = mb_odometry.y + diff_y;
-    mb_odometry.psi = mb_clamp_radians(mb_odometry.psi + diff_psi);
+    // take the average of encoder odometry and gryo angle
+    mb_odometry.psi = mb_clamp_radians((mb_state.yaw+mb_odometry.psi+diff_psi)/2.0);
 
     mb_state.last_left_encoder = mb_state.left_encoder;
     mb_state.last_right_encoder = mb_state.right_encoder;
+    mb_state.last_yaw = mb_state.yaw;
 }
 
 float mb_clamp_radians(float angle){

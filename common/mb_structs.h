@@ -23,6 +23,7 @@ struct mb_state{
     //TODO: Add more variables to this state as needed
     int  last_left_encoder;
     int  last_right_encoder;
+    float last_yaw;
     float dist_travelled;
 };
 
