@@ -84,7 +84,7 @@ int mb_controller_init(rc_filter_t *g_D1_filter, rc_filter_t *g_D2_filter, rc_fi
             fprintf(stderr,"ERROR in rc_filter_pid.\n");
             return -1;
     }
-    rc_filter_enable_saturation(g_D2_filter, -0.1, 0.1);
+    rc_filter_enable_saturation(g_D2_filter, -0.15, 0.15);
     rc_filter_enable_soft_start(g_D2_filter, 0.5);
 
     if(rc_filter_pid(g_D3_filter, D3_KP, D3_KI, D3_KD, 4*DT, DT)){
@@ -114,18 +114,18 @@ int mb_controller_update(mb_state_t *mb_state, mb_setpoints_t *mb_setpoints,
     double pwm_duty = 0;
     double turning_pwm_duty = 0;
 
-    if (mb_setpoints->manual_ctl == 2){
+    if (mb_setpoints->manual_ctl == 2){ // manual
         theta_ref = mb_setpoints->theta_ref;
-        //theta_ref = rc_filter_march(g_D2_filter, (mb_setpoints->wheel_angle-mb_state->phi));
+        // theta_ref = rc_filter_march(g_D2_filter, (mb_setpoints->wheel_angle-mb_state->phi));
         pwm_duty = rc_filter_march(g_D1_filter, (theta_ref+sse-mb_state->theta));
         turning_pwm_duty = mb_setpoints->heading_angle;
-        //turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw);
+        // turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw);
     }
     if (mb_setpoints->manual_ctl == 0){
         theta_ref = rc_filter_march(g_D2_filter, (mb_setpoints->wheel_angle-mb_state->phi));
         pwm_duty = rc_filter_march(g_D1_filter, (theta_ref+sse-mb_state->theta));
-        // turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw); // race
-        turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle--mb_state->yaw); // squae
+        turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw); // race
+        // turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->angle_travelled); // squae
     }
     mb_state->left_pwm = saturate(-turning_pwm_duty+pwm_duty);
     mb_state->right_pwm = saturate(turning_pwm_duty+pwm_duty);

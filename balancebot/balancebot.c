@@ -206,10 +206,16 @@ void balancebot_controller(){
     double right_phi = 2 *3.14 * mb_state.right_encoder/ENCODER_RES/GEAR_RATIO;
     mb_state.phi = (left_phi+right_phi)/2;
     double avg_encoder = (-mb_state.left_encoder+mb_state.right_encoder)/2.0;
+
 	mb_state.dist_travelled = WHEEL_DIAMETER * M_PI * avg_encoder/ENCODER_RES/GEAR_RATIO;
 
     // Update odometry
     mb_odometry_update();
+
+    // for heading angle
+    double odm_angle_diff = mb_odometry.psi - mb_state.last_heading_angle;
+    mb_state.last_heading_angle = mb_odometry.psi;
+    mb_state.angle_travelled = mb_state.angle_travelled + odm_angle_diff;
 
     // Calculate controller outputs
     mb_controller_update(&mb_state, &mb_setpoints,
@@ -263,7 +269,7 @@ void* setpoint_control_loop(void* ptr){
     float margin = 0.1; // if dsm value is smaller than the margin, setting to zero
 
     // autonomous mode variable
-    int race_task = 2; // 1 drag race 2 square
+    int race_task = 1; // 1 drag race 2 square
     // int wp_i = 1;
     int finish = 0;
     //double wp_arry[] = {0.0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11.0};
@@ -311,12 +317,6 @@ void* setpoint_control_loop(void* ptr){
                 mb_setpoints.theta_ref = forward_speed * 5 / 180 * M_PI;
                 mb_setpoints.wheel_angle += fwd_speed2dist(3*forward_speed);
                 mb_setpoints.heading_angle = trun_speed2angle(turning_speed)*5;
-                // if (mb_setpoints.heading_angle > M_PI) {
-                //     mb_setpoints.heading_angle -= 2*M_PI;
-                // }
-                // if (mb_setpoints.heading_angle < -M_PI) {
-                //     mb_setpoints.heading_angle += 2*M_PI;
-                // }
             } else if (mb_setpoints.manual_ctl==1){
                 // reset encoder
                 mb_setpoints.wheel_angle = 0.0;
@@ -483,7 +483,7 @@ void* printf_loop(void* ptr){
 			pthread_mutex_lock(&state_mutex);
 			printf("%7.3f  |", mb_state.theta);
 			printf("%7.3f  |", mb_state.phi);
-			printf("%7.3f  |", mb_state.yaw);
+			printf("%7.3f  |", mb_odometry.psi_no_clamp);
 			// printf("%7d  |", mb_state.left_encoder);
 			// printf("%7d  |", mb_state.right_encoder);
 			// printf("%7.3f  |", mb_state.opti_x);

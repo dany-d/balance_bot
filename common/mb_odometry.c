@@ -29,6 +29,8 @@ void mb_odometry_update(){
     mb_odometry.y = mb_odometry.y + diff_y;
     // take the average of encoder odometry and gryo angle
     mb_odometry.psi = mb_clamp_radians((mb_state.yaw+mb_odometry.psi+diff_psi)/2.0);
+    mb_odometry.psi_no_clamp += diff_psi;
+    mb_state.angle_travelled = mb_odometry.psi_no_clamp;
 
     mb_state.last_left_encoder = mb_state.left_encoder;
     mb_state.last_right_encoder = mb_state.right_encoder;

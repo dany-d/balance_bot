@@ -23,8 +23,10 @@ struct mb_state{
     //TODO: Add more variables to this state as needed
     int  last_left_encoder;
     int  last_right_encoder;
-    float last_yaw;
+    float last_yaw; // only gryo value
     float dist_travelled;
+    float last_heading_angle; // last fused odm angle
+    float angle_travelled; // accumulate angle
 };
 
 typedef struct mb_setpoints mb_setpoints_t;
@@ -43,6 +45,7 @@ struct mb_odometry{
     float x;        //x position from initialization in m
     float y;        //y position from initialization in m
     float psi;      //orientation from initialization in rad
+    float psi_no_clamp;
 };
 
 #endif
