@@ -38,6 +38,7 @@ struct mb_setpoints{
     float heading_angle; // mapping to yaw
     int manual_ctl;
     float theta_ref;
+    int turn;
 };
 
 typedef struct mb_odometry mb_odometry_t;
@@ -45,6 +46,7 @@ struct mb_odometry{
     float x;        //x position from initialization in m
     float y;        //y position from initialization in m
     float psi;      //orientation from initialization in rad
+    float last_psi;
     float psi_no_clamp;
 };
 

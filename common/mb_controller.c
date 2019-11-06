@@ -113,6 +113,8 @@ int mb_controller_update(mb_state_t *mb_state, mb_setpoints_t *mb_setpoints,
     double theta_ref = 0;
     double pwm_duty = 0;
     double turning_pwm_duty = 0;
+    double left_turn_pwm = 0;
+    double right_turn_pwm = 0;
 
     if (mb_setpoints->manual_ctl == 2){ // manual
         theta_ref = mb_setpoints->theta_ref;
@@ -124,11 +126,21 @@ int mb_controller_update(mb_state_t *mb_state, mb_setpoints_t *mb_setpoints,
     if (mb_setpoints->manual_ctl == 0){
         theta_ref = rc_filter_march(g_D2_filter, (mb_setpoints->wheel_angle-mb_state->phi));
         pwm_duty = rc_filter_march(g_D1_filter, (theta_ref+sse-mb_state->theta));
-        turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw); // race
-        // turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->angle_travelled); // squae
+        // turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->yaw); // race
+        if (mb_setpoints->turn==1){ // sqaure
+            turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->angle_travelled);
+        }else{
+            turning_pwm_duty = rc_filter_march(g_D3_filter, mb_setpoints->heading_angle-mb_state->angle_travelled);
+        }
     }
-    mb_state->left_pwm = saturate(-turning_pwm_duty+pwm_duty);
-    mb_state->right_pwm = saturate(turning_pwm_duty+pwm_duty);
+    if (mb_setpoints->turn==1){
+        mb_state->left_pwm = saturate(-turning_pwm_duty + pwm_duty);
+        mb_state->right_pwm = saturate(turning_pwm_duty + +pwm_duty);
+    }else{
+        mb_state->left_pwm = saturate(-turning_pwm_duty+pwm_duty); 
+        mb_state->right_pwm = saturate(turning_pwm_duty+pwm_duty);
+    }
+
 
     return 0;
 }
