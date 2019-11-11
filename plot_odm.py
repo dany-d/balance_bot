@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 np_data = None
-with open("for_traj.csv", 'r') as f:
+with open("odometry_only_gyro.csv", 'r') as f:
     reader = csv.reader(f)
     first_row = True
     for row in reader:
@@ -15,6 +15,21 @@ with open("for_traj.csv", 'r') as f:
             first_row = False
         else:
             np_data = np.concatenate((np_data, np.asarray([float(r) for r in row]).reshape(1 ,4)))
+
+np_data = np_data[0:650]
+
+feet = 0.3048
+np_gt = np.asarray([
+    [0, 0],
+    [2*feet, 0],
+    [2*feet, 2*feet],
+    [0, 2*feet],
+    [0, -1*feet],
+    [3*feet, -1*feet],
+    [3*feet, 3*feet],
+    [0, 3*feet],
+    [0, 0]])
+plt.plot(np_gt[:,0], np_gt[:,1], label='ground truth', linewidth=5, color='0.5', zorder=1)
 
 data_len= np_data.shape[0]
 print('data_len:', data_len)
@@ -42,12 +57,13 @@ for i in range(0, data_len, 5):
             ec=None,
             fc='r')
 
-plt.ylim(-2, 1)
+plt.ylim(-1, 2)
 plt.xlim(-1, 2)
 plt.xlabel('x axis (m)', fontsize=16)
 plt.ylabel('y axis (m)', fontsize=16)
-plt.title('Trajectory of following a square route', fontsize=16)
+plt.title('Gyrodometry (with threshold = 0.01(rad))', fontsize=16)
 plt.plot(np_data[:,0], np_data[:,1], label='odometry')
+plt.legend(fontsize=12)
 
-plt.savefig('traj.png', dpi=300)
+plt.savefig('odm.png', dpi=300)
 
